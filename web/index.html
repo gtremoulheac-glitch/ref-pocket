@@ -408,6 +408,7 @@ input[type=email],input[type=password],input[type=text],input[type=search]{backg
 .cardview{justify-items:center;text-align:center;gap:12px}
 /* Vue détaillée d'une carte */
 .cview{gap:14px;overflow-x:hidden}
+.cview:focus{outline:none}
 .cv-stage{position:relative;display:grid;place-items:center;padding:18px 0 10px;perspective:900px;overflow:hidden;border-radius:14px;
   background:radial-gradient(ellipse at 50% 45%,color-mix(in srgb,var(--rc,var(--panel-2)) 22%,transparent),transparent 70%)}
 .cv-stage.rC{--rc:var(--r-C)}.cv-stage.rR{--rc:var(--r-R)}.cv-stage.rE{--rc:var(--r-E)}.cv-stage.rL{--rc:var(--r-L)}
@@ -921,16 +922,25 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const Sfx=(()=>{
   let ac=null, primed=false;
   // Le bouton silencieux de l'iPhone coupe les sons du jeu (comportement normal d'une appli de jeu)
-  const ctx=()=>{if(L.mute)return null;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();}catch(e){return null;}return ac;};
+  const AC=window.AudioContext||window.webkitAudioContext;
+  const ctx=()=>{if(L.mute)return null;try{if(ac&&ac.state==="closed")ac=null;ac=ac||new AC();if(ac.state!=="running")ac.resume().catch(()=>{});}catch(e){return null;}return ac;};
+  // iPhone : après une vidéo avec le son, un appel, le micro ou un passage en arrière-plan, le contexte audio peut rester
+  // bloqué (« interrupted » ou « suspended » qui ne repart plus). On en recrée alors un neuf, pendant un toucher.
+  let stuck=0;
+  const prime=a=>{try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);primed=true;}catch(e){}};
   const tone=(f,t,d,type="sine",g=.12)=>{const a=ctx();if(!a)return;const o=a.createOscillator(),v=a.createGain(),s=a.currentTime+t;o.type=type;o.frequency.value=f;v.gain.setValueAtTime(0,s);v.gain.linearRampToValueAtTime(g,s+.012);v.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(v).connect(a.destination);o.start(s);o.stop(s+d+.05);};
   const noise=(d,type,f0,f1,g=.2,t=0)=>{const a=ctx();if(!a)return;const n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<n;i++)x[i]=Math.random()*2-1;
     const src=a.createBufferSource(),fl=a.createBiquadFilter(),v=a.createGain(),s=a.currentTime+t;src.buffer=b;fl.type=type;fl.Q.value=1.2;fl.frequency.setValueAtTime(f0,s);fl.frequency.exponentialRampToValueAtTime(f1,s+d);
     v.gain.setValueAtTime(g,s);v.gain.exponentialRampToValueAtTime(.0001,s+d);src.connect(fl).connect(v).connect(a.destination);src.start(s);};
   return {
     // À appeler pendant un vrai toucher (touchend / click) : sur iPhone, le son ne peut démarrer qu'à ce moment-là
-    unlock(){const a=ctx();if(!a)return;
-      if(a.state!=="running") a.resume().catch(()=>{});
-      if(!primed||a.state!=="running"){try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);primed=true;}catch(e){}}
+    unlock(){let a=ctx();if(!a)return;
+      if(a.state==="running"){stuck=0;if(!primed)prime(a);return;}
+      // Pas reparti depuis le toucher précédent (ou interrompu par l'iPhone) : on repart sur un contexte neuf
+      if(a.state==="interrupted"||stuck>=1){try{a.close();}catch(e){} ac=null; primed=false; stuck=0; a=ctx(); if(!a)return;}
+      else stuck++;
+      a.resume().then(()=>{if(a.state==="running")stuck=0;}).catch(()=>{});
+      prime(a);
       },
     // Micro (talkie-walkie) : l'iPhone doit passer en mode lecture + enregistrement, puis revenir
     session(rec){try{if(navigator.audioSession)navigator.audioSession.type=rec?"play-and-record":"auto";}catch(e){}},
@@ -2362,7 +2372,11 @@ function openCard(id,opt={}){
     card.style.transform=`rotateY(${x*22}deg) rotateX(${-y*22}deg)`;card.style.setProperty("--sx",`${(x+.5)*100}%`);card.style.setProperty("--sy",`${(y+.5)*100}%`);};
   st.onpointermove=e=>{if(!reduced)tilt(e);};
   st.onpointerleave=()=>{card.style.transform="";};
+  // iPhone : à l'ouverture, la fenêtre se plaçait sur le premier bouton (en bas). On met le focus en haut, sur la carte.
+  const cvTop=dlg.querySelector(".cview"); if(cvTop){cvTop.setAttribute("tabindex","-1");cvTop.setAttribute("autofocus","");}
   dlg.showModal();
+  const toTop=()=>{dlg.scrollTop=0;if(cvTop){cvTop.scrollTop=0;try{cvTop.focus({preventScroll:true});}catch(e){}}};
+  toTop(); requestAnimationFrame(toTop); setTimeout(toTop,120);
   // Son de la carte : joué tout seul pour une légendaire, sinon avec le bouton « Écouter »
   const hasVid=c.r==="L"&&c.video;
   let cvOpen=true;
