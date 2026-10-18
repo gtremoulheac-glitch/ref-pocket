@@ -404,10 +404,13 @@ input[type=email],input[type=password],input[type=text],input[type=search]{backg
 .players{display:grid;gap:8px}
 .player{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;text-align:left}
 .player:hover{border-color:var(--accent)}
-.dlg{overflow-y:auto;max-height:calc(100vh - 40px)}
+dialog{overflow-y:auto}
+.check{display:inline-flex;gap:8px;align-items:center;font-weight:600;cursor:pointer}
+.dlg{overflow:visible}
 .cardview{justify-items:center;text-align:center;gap:12px}
 /* Vue détaillée d'une carte */
-.cview{gap:14px;overflow-x:hidden}
+.cview{gap:14px;overflow-x:clip;position:relative}
+.cv-x{position:sticky;top:0;justify-self:end;z-index:6;margin-bottom:-52px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:rgba(20,14,36,.85);color:var(--fg);font-size:18px;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .cview:focus{outline:none}
 .cv-stage{position:relative;display:grid;place-items:center;padding:18px 0 10px;perspective:900px;overflow:hidden;border-radius:14px;
   background:radial-gradient(ellipse at 50% 45%,color-mix(in srgb,var(--rc,var(--panel-2)) 22%,transparent),transparent 70%)}
@@ -921,6 +924,8 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 /* ---------- Son (synthétisé, aucun fichier) ---------- */
 const Sfx=(()=>{
   let ac=null, primed=false;
+  // Option des réglages : jouer le son même quand l'iPhone est en mode silencieux
+  try{ if(navigator.audioSession&&L.forceSound) navigator.audioSession.type="playback"; }catch(e){}
   // Le bouton silencieux de l'iPhone coupe les sons du jeu (comportement normal d'une appli de jeu)
   const AC=window.AudioContext||window.webkitAudioContext;
   const ctx=()=>{if(L.mute)return null;try{if(ac&&ac.state==="closed")ac=null;ac=ac||new AC();if(ac.state!=="running")ac.resume().catch(()=>{});}catch(e){return null;}return ac;};
@@ -943,7 +948,7 @@ const Sfx=(()=>{
       prime(a);
       },
     // Micro (talkie-walkie) : l'iPhone doit passer en mode lecture + enregistrement, puis revenir
-    session(rec){try{if(navigator.audioSession)navigator.audioSession.type=rec?"play-and-record":"auto";}catch(e){}},
+    session(rec){try{if(navigator.audioSession)navigator.audioSession.type=rec?"play-and-record":(L.forceSound?"playback":"auto");}catch(e){}},
     state(){return ac?ac.state:"pas encore créé";},
     // Son d'une carte (fichier importé dans l'admin) : chargé à l'avance, joué via le même contexte audio
     _clips:{},
@@ -2342,7 +2347,7 @@ function openCard(id,opt={}){
   const l=opt.lvl!=null?opt.lvl:lvl(id),c=opt.lvl!=null?boosted(BYID[id],l):myCard(id),o=own(id),bn=lvlBonus(l,c.type),f=c.fx?FX[c.fx]:null,dlg=$("#dlg"),t=typeOf(c.type);
   const holo=opt.holo!=null?opt.holo:o.h>0, special=c.r==="E"||c.r==="L"||holo;
   const bat=(t.bat||[]).map(b=>esc(typeOf(b).name)), weak=Object.entries(TYPES).filter(([k,x])=>x.bat.includes(c.type)).map(([k,x])=>esc(x.name));
-  dlg.innerHTML=`<div class="dlg cview">
+  dlg.innerHTML=`<div class="dlg cview"><button type="button" class="cv-x" data-closecvx aria-label="Fermer">✕</button>
     <div class="cv-stage r${c.r}${holo?" isholo":""}" id="cvstage">
       ${c.r==="E"||c.r==="L"?`<div class="rays on${c.r==="L"?" big":""}" style="--rc:var(--r-${c.r})"></div>`:""}
       ${special?'<div class="cv-glow"></div>':""}
@@ -2366,6 +2371,7 @@ function openCard(id,opt={}){
     <button class="btn ghost" data-closecv style="justify-self:center;min-width:160px">Fermer</button>
   </div>`;
   dlg.querySelector("[data-closecv]").onclick=()=>dlg.close();
+  dlg.querySelector("[data-closecvx]").onclick=()=>dlg.close();
   // Inclinaison 3D qui suit le doigt ou la souris
   const st=dlg.querySelector("#cvstage"), card=dlg.querySelector("#cvcard");
   const tilt=e=>{const r=card.getBoundingClientRect();const x=(e.clientX-r.left)/r.width-.5,y=(e.clientY-r.top)/r.height-.5;
@@ -2507,12 +2513,15 @@ function openSettings(){
     ${S.me.is_admin?`<a class="btn ghost" href="admin.html" style="text-decoration:none;text-align:center">Ouvrir la page admin</a>`:""}
     <div class="row"><button class="btn ghost" id="set-mute">${L.mute?"Activer le son":"Couper le son"}</button><button class="btn ghost" id="set-sound">🔊 Tester le son</button><button class="btn ghost" id="set-refresh">Actualiser</button></div>
     ${typeof DeviceOrientationEvent!=="undefined"&&typeof DeviceOrientationEvent.requestPermission==="function"?`<button class="btn ghost" id="set-tilt">📱 Activer l'inclinaison des cartes</button>`:""}
+    ${/iphone|ipad|ipod/i.test(navigator.userAgent)||(/macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1)?`<label class="check"><input type="checkbox" id="set-force" ${L.forceSound?"checked":""}> Son même en mode silencieux</label>`:""}
     <p class="note" id="set-diag" role="status"></p>
     <p class="note">Ref Pocket · version de test. Ta collection est enregistrée sur le serveur : tu la retrouves sur n'importe quel appareil en te connectant.</p>
     <div class="row" style="justify-content:space-between"><button class="btn danger" id="set-out">Se déconnecter</button><button class="btn ghost" id="set-close">Fermer</button></div></div>`;
   dlg.querySelector("#set-mute").onclick=()=>{L.mute=!L.mute;saveL();openSettings();};
+  const fs=dlg.querySelector("#set-force"); if(fs) fs.onchange=()=>{L.forceSound=fs.checked;saveL();Sfx.session(false);Sfx.unlock();Sfx.L();
+    $("#set-diag").textContent=fs.checked?(navigator.audioSession?"Le jeu fera du son même en mode silencieux.":"Ton iPhone est trop ancien pour cette option (iOS 17 minimum)."):"Le mode silencieux coupe de nouveau les sons du jeu.";};
   dlg.querySelector("#set-sound").onclick=()=>{Sfx.unlock();Sfx.L();setTimeout(()=>{$("#set-diag").textContent=L.mute?"Le son est coupé dans le jeu : touche « Activer le son ».":
-    `Son du jeu : ${Sfx.state()==="running"?"actif":Sfx.state()}. Tu n'entends rien ? Vérifie le bouton silencieux sur le côté de l'iPhone et le volume.`;},300);};
+    `Son du jeu : ${Sfx.state()==="running"?"actif":Sfx.state()}. Tu n'entends rien ? Ton iPhone est peut-être en mode silencieux (bouton sur le côté) : active « Son même en mode silencieux » ou monte le volume.`;},300);};
   const tb=dlg.querySelector("#set-tilt"); if(tb) tb.onclick=async()=>{await Tilt.ask(true);$("#set-diag").textContent=Tilt.on?"Inclinaison activée.":"Accès refusé : autorise « Mouvements et orientation » pour Safari dans les réglages de l'iPhone.";};
   dlg.querySelector("#set-refresh").onclick=async()=>{await act(async()=>{await loadCatalogue();},"À jour");dlg.close();};
   dlg.querySelector("#set-out").onclick=async()=>{dlg.close();await sb.auth.signOut();};
