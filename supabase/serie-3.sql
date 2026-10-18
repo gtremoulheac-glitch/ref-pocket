@@ -1,0 +1,92 @@
+-- Série 3 : 76 nouvelles cartes et le type Sport.
+-- À coller dans Supabase > SQL Editor, puis Run. Relançable sans risque :
+-- une carte déjà présente (même identifiant) n'est pas modifiée.
+
+insert into public.types(id,name,abbr,color,sort) values ('sport','Sport','SPORT','#27c4c4',9)
+on conflict (id) do nothing;
+
+-- Sport bat Foot, Télé bat Sport
+insert into public.type_matchups(attacker,defender,mult) values ('sport','foot',1.5),('tele','sport',1.5)
+on conflict (attacker,defender) do nothing;
+
+insert into public.cards(id,n,name,type,rarity,p,d,v,fx,art,flavor)
+select v.id, (select coalesce(max(n),0) from public.cards) + v.ord, v.name, v.type, v.rarity, v.p, v.d, v.v, v.fx, v.art, v.flavor
+from (values
+  ('se-teleporter-au-peloponese',1,'Se téléporter au Péloponèse','sn','C',1,5,2,null,'🌀',''),
+  ('hasard-de-dingue',2,'Hasard de dingue','sn','C',1,5,2,null,'🎲',''),
+  ('tu-vas-conduire-le-bus',3,'Tu vas conduire le bus','sport','R',3,3,3,null,'🚌','Philippe Lucas, l''entraîneur de natation au franc-parler légendaire.'),
+  ('philippe-le-parapet',4,'Philippe le parapet','sport','E',3,4,5,'reflect','🚴','Tour de France 2018 : Philippe Gilbert passe par-dessus un parapet dans une descente… puis remonte sur son vélo.'),
+  ('t-es-grand-aujourd-hui',5,'T''es grand aujourd''hui','sn','C',1,2,3,null,'📏',''),
+  ('le-bar-est-ouvert',6,'Le bar est ouvert','sn','C',4,2,2,null,'🍻',''),
+  ('je-n-avais-jamais-vu-autant-de-fils-de-p',7,'Je n''avais jamais vu autant de fils de pute','sn','C',1,2,3,null,'😳',''),
+  ('jordan-t-es-mort',8,'Jordan t''es mort','sport','R',4,1,5,null,'💀','Le trash talk dans le sport, version sans filtre.'),
+  ('gazo-la-drill-ca-denonce',9,'Gazo la drill ça dénonce','yt','R',4,1,4,null,'🎤','Gazo, figure de la drill française.'),
+  ('la-banane-et-le-chocolat',10,'La banane et le chocolat','sn','C',4,2,2,null,'🍌',''),
+  ('trop-relou',11,'Trop relou','yt','C',4,1,3,null,'😮‍💨','Zola.'),
+  ('vous-pensez-moi-je-pense-pas',12,'Vous pensez ? Moi je pense pas','sn','C',1,2,3,null,'🤔',''),
+  ('pour-rejoindre-tes-potes-et-tes-amis',13,'Pour rejoindre tes potes ? Et tes amis','foot','R',3,2,5,null,'🤝','Dayot Upamecano en interview.'),
+  ('0h10-bonjour-comment-j-etais-fatigue',14,'0h10, bonjour comment j''étais fatigué','sn','C',2,2,3,null,'🥱',''),
+  ('racail-de-shanghai',15,'Racail de Shanghaï','sn','C',1,3,4,null,'🏙️',''),
+  ('calina',16,'Calina','yt','C',2,2,2,null,'🎬','Kev Adams.'),
+  ('ah-c-est-marrant',17,'Ah c''est marrant','yt','C',2,1,3,null,'🙂','Orelsan.'),
+  ('le-djo-de-ses-mort',18,'Le djo de ses mort','sn','C',2,1,3,null,'⚰️',''),
+  ('ok',19,'Ok','sn','C',3,2,3,null,'🆗',''),
+  ('tu-serais-pas-menteuse',20,'Tu serais pas menteuse','sn','C',3,3,2,null,'🤥',''),
+  ('ils-sont-la-dans-les-villes-dans-les-cam',21,'Ils sont là, dans les villes, dans les campagnes','sn','C',1,1,4,null,'🏘️',''),
+  ('elle-est-bonne-marion',22,'Elle est bonne Marion','sn','C',1,4,2,null,'😏',''),
+  ('sfr',23,'Sfr','tele','C',3,2,2,null,'📶','Jojo Sucre.'),
+  ('j-ai-pas-de-strategie',24,'J''ai pas de stratégie','sn','C',1,3,2,null,'♟️',''),
+  ('la-limonette',25,'La limonette','yt','R',2,5,3,null,'🍋','Un sketch du Palmashow.'),
+  ('la-pharmacici-la-famille',26,'La pharmacici la famille','sn','C',1,1,4,null,'💊',''),
+  ('starshoot',27,'Starshoot','yt','C',2,2,3,null,'📸','Michou.'),
+  ('je-possede-des-thunes',28,'Je possède des thunes','sn','C',3,2,3,null,'💸',''),
+  ('excepte-une-fois-au-chalet',29,'Excepté une fois au chalet','sn','C',4,1,2,null,'🏔️',''),
+  ('j-ai-une-dent-de-requin-autour-du-cou',30,'J''ai une dent de requin autour du cou','sn','C',2,1,3,null,'🦈',''),
+  ('moi-puceau-certainement-pas',31,'Moi puceau, certainement pas','sn','C',2,2,4,null,'🙅',''),
+  ('gaspard-et-balthazar',32,'Gaspard et Balthazar','yt','R',2,5,3,null,'🎭','Deux personnages cultes du Palmashow.'),
+  ('c-est-ma-9-red-bull',33,'C''est ma 9 red bull','sn','C',2,1,4,null,'🥫',''),
+  ('believe-croire-en-nos-reves',34,'Believe, croire en nos rêves','sn','C',3,2,2,null,'🌠',''),
+  ('ca-n-a-rien-a-voir',35,'Ça n''a rien à voir','sn','C',1,4,3,null,'🤷',''),
+  ('mais-qu-est-ce-qu-il-fait-lui',36,'Mais qu''est-ce qu''il fait lui','sn','C',1,2,4,null,'👀',''),
+  ('c-est-comme-danser-un-slow-avec-ca-s-ur',37,'C''est comme danser un slow avec ça sœur','sn','C',3,2,3,null,'💃',''),
+  ('a-la-tu-t-es-fait-mal',38,'À là tu t''es fait mal','sn','C',2,4,2,null,'🤕',''),
+  ('les-gens-qui-parlent-en-francais-ils-ont',39,'Les gens qui parlent en français ils ont tellement de charisme','sn','R',5,2,3,null,'🥖',''),
+  ('oh-je-me-casse-la-gueule',40,'Oh je me casse la gueule','sn','C',1,3,4,null,'🫠',''),
+  ('pas-content-triple',41,'Pas content, triplé','sport','C',4,2,2,null,'⚽',''),
+  ('le-plus-dur-c-etait-van-djik',42,'Le plus dur c''était van djik','foot','R',2,4,3,null,'🧱',''),
+  ('pas-ouais-logique',43,'Pas ouais logique','yt','C',3,1,4,null,'🧠','Mohamed Henni.'),
+  ('non',44,'Non','yt','C',4,2,2,null,'✋','SCH.'),
+  ('bravo-nils-super-pour-l-appareil-photo',45,'Bravo nils, super pour l''appareil photo','sn','C',3,1,4,null,'📷',''),
+  ('plante-de-baton',46,'Planté de baton','fi','R',2,6,3,'pierce','⛷️','Les Bronzés font du ski, 1979. La leçon de ski la plus célèbre du cinéma français.'),
+  ('on-est-au-cambodge-la-ou-quoi',47,'On est au Cambodge là ou quoi','sn','C',1,4,3,null,'🌏',''),
+  ('alors-on-attend-pas-patrick',48,'Alors on attend pas Patrick','sn','C',4,2,2,null,'⏳',''),
+  ('kayakobeme',49,'Kayakobeme','sn','C',3,1,2,null,'🛶',''),
+  ('tu-vas-pas-commencer-a-me-choper-par-le',50,'Tu vas pas commencer à me choper par le colback','sn','C',3,1,4,null,'👔',''),
+  ('je-vais-t-arracher-les-yeux-tete-de-cul',51,'Je vais t''arracher les yeux tête de cul','sn','C',1,2,3,null,'👁️',''),
+  ('moi-je-suis-un-nerveux',52,'Moi je suis un nerveux','sn','C',3,2,3,null,'😠',''),
+  ('premier-avertissement-ta-mere-elle-suce',53,'Premier avertissement ta mère elle suce des ours','sn','C',3,1,3,null,'🐻',''),
+  ('mensonge-perroquet',54,'Mensonge, perroquet','sn','C',2,1,4,null,'🦜',''),
+  ('il-fait-tarpin-chaud',55,'Il fait tarpin chaud','sn','R',5,2,4,null,'🥵','« Tarpin » : « très », en marseillais. Et là, il fait très chaud.'),
+  ('ptdr-t-es-qui',56,'Ptdr t''es qui','sn','E',3,6,3,'hidden','🤨','La réponse universelle à quelqu''un qui se croit important.'),
+  ('la-boisson-du-sheitan',57,'La boisson du sheitan','sn','C',1,3,3,null,'🍷',''),
+  ('pas-de-bras-pas-de-chocolat',58,'Pas de bras, pas de chocolat','fi','E',9,2,3,'stun','🍫','Intouchables, 2011. Une blague qui a fait rire toute la France.'),
+  ('est-ce-qu-on-est-bientot-arrive',59,'Est ce qu''on est bientôt arrivé','fi','R',2,2,5,null,'🫏','Shrek 2, 2004. Le compagnon de route le plus insupportable du cinéma.'),
+  ('t-es-surment-pas-francais',60,'T''es surment pas français','sn','C',1,2,4,null,'🇫🇷',''),
+  ('j-adore-rire',61,'J''adore rire','tr','R',3,5,3,null,'😂','Karine Le Marchand.'),
+  ('tu-degage',62,'Tu dégage','sn','C',2,2,4,null,'👋',''),
+  ('c-est-honteux',63,'C''est honteux','sn','C',1,3,4,null,'😤',''),
+  ('le-rapport',64,'Le rapport','yt','R',4,1,5,null,'📋','Squeezie.'),
+  ('hiiih',65,'Hiiih','fi','R',1,5,4,null,'😱','Jonathan Cohen.'),
+  ('ah-il-est-gros-le-bonbon',66,'Ah il est gros le bonbon','sn','C',2,2,2,null,'🍬',''),
+  ('neo-quoi-a-la-trique',67,'Neo quoi a la trique','yt','C',1,3,3,null,'🫣',''),
+  ('c-est-quoi-ca-marque-de-tennis-prefere',68,'C''est quoi ça marque de tennis préféré','sn','C',3,2,2,null,'🎾',''),
+  ('pourquoi-tu-me-l-as-pas-dit-plus-tot',69,'Pourquoi tu me l''as pas dit plus tôt','sn','C',1,2,4,null,'🤦',''),
+  ('ca-sent-bon-cet-histoire',70,'Ça sent bon cet histoire','sn','C',3,2,3,null,'👃',''),
+  ('noopy',71,'Noopy','sn','C',1,1,4,null,'🐶',''),
+  ('la-question-elle-est-vite-repondu',72,'La question elle est vite répondu','cu','L',3,8,5,'absurde','❓','La réponse avant même que la question soit posée. Un monument.'),
+  ('mais-vous-fume-monsieur',73,'Mais vous fumé monsieur','pol','R',2,5,4,null,'🚬','Nicolas Sarkozy.'),
+  ('s-il-vous-plait',74,'S''il vous plaît','sn','C',1,4,2,null,'✈️','À l''aéroport.'),
+  ('mais-c-etait-sur-en-fait',75,'Mais c''était sûr en fait','sn','C',3,2,3,null,'💯',''),
+  ('je-te-demande-pardon',76,'Je te demande pardon','sn','C',2,1,4,null,'🙏','')
+) as v(id,ord,name,type,rarity,p,d,v,fx,art,flavor)
+where not exists (select 1 from public.cards c where c.id = v.id);

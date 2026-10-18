@@ -1,0 +1,17 @@
+{
+  "name": "Ref Pocket",
+  "short_name": "Ref Pocket",
+  "description": "Le jeu de cartes à collectionner de la culture internet française.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#130f1c",
+  "theme_color": "#130f1c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

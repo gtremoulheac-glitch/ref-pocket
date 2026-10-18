@@ -1,0 +1,9 @@
+# Lien local avec Vercel (propre à chaque ordinateur)
+.vercel/
+web/.vercel/
+# Divers
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,55 @@
+/* ===== Cartes (format FUT : note en haut à gauche, matière selon la rareté) ===== */
+.card{--tc:var(--muted);--rc:#9b93ad;--bg1:#57506b;--bg2:#24202f;--ink:#fff;container-type:inline-size;position:relative;aspect-ratio:63/88;width:100%;max-width:100%;
+  border-radius:2.8cqw;background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 100%);border:1.1cqw solid var(--rc);color:var(--ink);overflow:hidden;isolation:isolate;text-align:left}
+.card.r-C{--rc:#a39bb5;--bg1:#5b546f;--bg2:#211d2c;--ink:#fff}
+.card.r-R{--rc:#79bcff;--bg1:#2c69bd;--bg2:#0c1a38;--ink:#fff}
+.card.r-E{--rc:#dfa6ff;--bg1:#8037c2;--bg2:#1f0b36;--ink:#fff}
+.card.r-L{--rc:#fff3b8;--bg1:#ffe38a;--bg2:#a8720e;--ink:#2a1900;box-shadow:0 0 18px -4px #ffd23f}
+.card::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(118deg,transparent 28%,rgba(255,255,255,.22) 40%,transparent 52%),repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 2cqw,transparent 2cqw 4cqw)}
+.card .cf{position:absolute;inset:3cqw;z-index:1;border:.5cqw solid color-mix(in srgb,var(--ink) 28%,transparent);border-radius:1.6cqw;display:flex;flex-direction:column;overflow:hidden}
+.card .ctz{position:relative;flex:0 0 52%;isolation:isolate}
+.card .ctz::after{content:"";position:absolute;left:-2cqw;right:-2cqw;top:14cqw;height:15cqw;background:var(--tc);opacity:.38;transform:skewY(-11deg);z-index:-1}
+.card .chead{position:absolute;left:3.5cqw;top:3cqw;display:grid;justify-items:center;gap:1cqw;z-index:2}
+.card .ovr{font-family:var(--f-display);font-size:17cqw;line-height:.85}
+.card .ctyp{font-size:5.2cqw;font-weight:800;letter-spacing:.06em;padding:.4cqw 1.6cqw;border-radius:1cqw;background:var(--tc);color:#120d1c;white-space:nowrap}
+.card .rar{font-size:7.5cqw;line-height:1}
+.card .art{position:absolute;right:1cqw;top:4cqw;width:62cqw;height:44cqw;display:grid;place-items:center;font-size:31cqw;line-height:1;filter:drop-shadow(0 2cqw 2.5cqw rgba(0,0,0,.45))}
+.card .cname{font-family:var(--f-display);font-size:7.4cqw;line-height:1.05;text-align:center;padding:1.6cqw 3cqw;margin:0 2cqw;
+  border-block:.5cqw solid color-mix(in srgb,var(--ink) 30%,transparent);text-wrap:balance;min-height:calc(2.1em + 3.2cqw);display:grid;place-items:center;overflow-wrap:anywhere}
+.card .cname.long{font-size:6.3cqw}
+.card .cname.xlong{font-size:5.3cqw}
+.card .stats{display:grid;grid-template-columns:repeat(3,1fr);padding:2.2cqw 3cqw 0;text-align:center}
+.card .stats span{display:grid;font-family:var(--f-mono);font-size:8.6cqw;font-weight:600;line-height:1.05}
+.card .stats i{font-style:normal;font-family:var(--f-body);font-size:4.4cqw;font-weight:800;letter-spacing:.08em;opacity:.72}
+.card .cfoot{margin-top:auto;display:flex;justify-content:space-between;align-items:center;gap:2cqw;padding:0 3cqw 2.4cqw;font-family:var(--f-mono);font-size:4.8cqw}
+.card .cfoot>span:first-child{opacity:.75}
+.card .fxn{font-family:var(--f-body);font-weight:800;text-transform:uppercase;letter-spacing:.04em;font-size:4.4cqw;background:rgba(0,0,0,.35);color:#fff;padding:.5cqw 2cqw;border-radius:99px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card.holo::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;mix-blend-mode:color-dodge;opacity:.55;
+  background:linear-gradient(115deg,transparent 20%,rgba(255,80,180,.55) 35%,rgba(80,240,255,.55) 45%,rgba(255,240,90,.55) 55%,transparent 70%);background-size:250% 250%;animation:shine 3.5s linear infinite}
+.card .holotag{position:absolute;bottom:13cqw;left:50%;transform:translateX(-50%);font-family:var(--f-mono);font-size:5.4cqw;font-weight:600;background:linear-gradient(90deg,#ff7ad1,#6ef0ff,#ffe86b);color:#1a1030;border-radius:99px;padding:.3cqw 3cqw;z-index:3}
+@keyframes shine{0%{background-position:0% 0%}100%{background-position:250% 250%}}
+.card.unknown{--bg1:#251e3a;--bg2:#15111f;--rc:#3a3157;--ink:#6d6390}
+.card.unknown .art{font-family:var(--f-display);font-size:26cqw;filter:none}
+.card .count{position:absolute;top:4cqw;right:4cqw;z-index:3;font-family:var(--f-mono);font-size:6.4cqw;background:var(--ink-0,#130f1c);color:#fff;border:1px solid var(--line);border-radius:99px;padding:.4cqw 2.6cqw}
+.cardback{container-type:inline-size;aspect-ratio:63/88;width:100%;border-radius:4.4%/3.2%;position:relative;display:grid;place-items:center;
+  background:radial-gradient(circle closest-side at 50% 50%,#3a2466 0 68%,rgba(255,111,191,.35) 69% 71%,transparent 72%),repeating-linear-gradient(135deg,#1b1530 0 3.5%,#241a40 3.5% 7%)}
+/* bord en dégradé Ref Pocket */
+.cardback::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.1cqw;pointer-events:none;
+  background:linear-gradient(135deg,#ffe46b 0%,#ff6fbf 35%,#8f6bff 68%,#46e0ff 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.cardback::after{content:"";position:absolute;inset:3cqw;border:.5cqw solid rgba(255,111,191,.3);border-radius:1.6cqw;pointer-events:none}
+.cardback span{font-family:var(--f-display);font-size:20cqw;line-height:1;transform:rotate(-8deg);
+  background:linear-gradient(135deg,#ffe46b 0%,#ff6fbf 40%,#a98bff 70%,#46e0ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 .8cqw 1.6cqw rgba(0,0,0,.45))}
+
+/* Image importée : elle remplit la zone haute de la carte */
+.card .ctz .artimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;display:block}
+.card.hasimg .ctz::after{display:none}
+.card.hasimg .ctz::before{content:"";position:absolute;left:0;right:0;bottom:0;height:35%;z-index:1;pointer-events:none;background:linear-gradient(to bottom,transparent,color-mix(in srgb,var(--bg2) 85%,transparent))}
+.card.hasimg .chead{background:color-mix(in srgb,var(--bg1) 78%,transparent);padding:1.4cqw 1.8cqw 1.8cqw;border-radius:1.6cqw;left:2.5cqw;top:2.5cqw;box-shadow:0 1cqw 3cqw rgba(0,0,0,.25)}
+
+/* Niveaux (étoiles) */
+.card .chead .lvl{display:flex;flex-direction:column;align-items:center;line-height:.9;font-size:6.2cqw;color:#ffd23f;text-shadow:0 0 1.5cqw rgba(0,0,0,.6),0 0 .4cqw #000}
+.card .stats span.up{color:#ffb000;text-shadow:0 0 2cqw rgba(255,190,40,.45)}
+.card.r-L .stats span.up,.card.r-E .stats span.up{color:#fff6c0}
