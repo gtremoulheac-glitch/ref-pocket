@@ -1,6 +1,6 @@
 // Service worker : rend l'appli installable et garde l'interface en cache.
 // Les données du jeu (Supabase) ne sont jamais mises en cache : elles viennent toujours du serveur.
-const CACHE = "refmaster-v43";
+const CACHE = "refmaster-v44";
 const SHELL = ["./", "index.html", "config.js", "cartes.js", "cartes.css", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "fonts/fonts.css",
   "fonts/bowlby-one-latin-400-normal.woff2", "fonts/figtree-latin-400-normal.woff2", "fonts/figtree-latin-700-normal.woff2", "fonts/figtree-latin-800-normal.woff2"];
@@ -15,6 +15,9 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET" || url.origin !== location.origin) return; // Supabase, polices, CDN : réseau direct
+  // Pages (index.html, admin.html) : pas d'interception. Sur iPhone (appli installée), une page servie par le
+  // service worker semble perdre le son après une relance ; chargée directement, elle le garde.
+  if (e.request.mode === "navigate") return;
   // Réseau d'abord (pour toujours avoir la dernière version), cache si hors ligne
   e.respondWith(
     fetch(e.request).then(res => {
