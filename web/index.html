@@ -931,7 +931,7 @@ const Sfx=(()=>{
   const ctx=()=>{if(L.mute)return null;try{if(ac&&ac.state==="closed")ac=null;ac=ac||new AC();if(ac.state!=="running")ac.resume().catch(()=>{});}catch(e){return null;}return ac;};
   // iPhone : après une vidéo avec le son, un appel, le micro ou un passage en arrière-plan, le contexte audio peut rester
   // bloqué (« interrupted » ou « suspended » qui ne repart plus). On en recrée alors un neuf, pendant un toucher.
-  let stuck=0;
+  let fails=0, lastTry=0;
   const prime=a=>{try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);primed=true;}catch(e){}};
   const tone=(f,t,d,type="sine",g=.12)=>{const a=ctx();if(!a)return;const o=a.createOscillator(),v=a.createGain(),s=a.currentTime+t;o.type=type;o.frequency.value=f;v.gain.setValueAtTime(0,s);v.gain.linearRampToValueAtTime(g,s+.012);v.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(v).connect(a.destination);o.start(s);o.stop(s+d+.05);};
   const noise=(d,type,f0,f1,g=.2,t=0)=>{const a=ctx();if(!a)return;const n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<n;i++)x[i]=Math.random()*2-1;
@@ -940,11 +940,13 @@ const Sfx=(()=>{
   return {
     // À appeler pendant un vrai toucher (touchend / click) : sur iPhone, le son ne peut démarrer qu'à ce moment-là
     unlock(){let a=ctx();if(!a)return;
-      if(a.state==="running"){stuck=0;if(!primed)prime(a);return;}
-      // Pas reparti depuis le toucher précédent (ou interrompu par l'iPhone) : on repart sur un contexte neuf
-      if(a.state==="interrupted"||stuck>=1){try{a.close();}catch(e){} ac=null; primed=false; stuck=0; a=ctx(); if(!a)return;}
-      else stuck++;
-      a.resume().then(()=>{if(a.state==="running")stuck=0;}).catch(()=>{});
+      if(a.state==="running"){fails=0;if(!primed)prime(a);return;}
+      // Un même toucher déclenche « touchend » puis « click » : on ne compte qu'une tentative par geste
+      const now=performance.now(), newGesture=now-lastTry>700; lastTry=now;
+      // Toujours bloqué après deux gestes distincts (ou interrompu par l'iPhone) : on repart sur un contexte neuf
+      if(newGesture&&(a.state==="interrupted"||fails>=2)){try{a.close();}catch(e){} ac=null; primed=false; fails=0; a=ctx(); if(!a)return;}
+      else if(newGesture) fails++;
+      a.resume().then(()=>{if(a.state==="running")fails=0;}).catch(()=>{});
       prime(a);
       },
     // Micro (talkie-walkie) : l'iPhone doit passer en mode lecture + enregistrement, puis revenir
@@ -2520,8 +2522,16 @@ function openSettings(){
   dlg.querySelector("#set-mute").onclick=()=>{L.mute=!L.mute;saveL();openSettings();};
   const fs=dlg.querySelector("#set-force"); if(fs) fs.onchange=()=>{L.forceSound=fs.checked;saveL();Sfx.session(false);Sfx.unlock();Sfx.L();
     $("#set-diag").textContent=fs.checked?(navigator.audioSession?"Le jeu fera du son même en mode silencieux.":"Ton iPhone est trop ancien pour cette option (iOS 17 minimum)."):"Le mode silencieux coupe de nouveau les sons du jeu.";};
-  dlg.querySelector("#set-sound").onclick=()=>{Sfx.unlock();Sfx.L();setTimeout(()=>{$("#set-diag").textContent=L.mute?"Le son est coupé dans le jeu : touche « Activer le son ».":
-    `Son du jeu : ${Sfx.state()==="running"?"actif":Sfx.state()}. Tu n'entends rien ? Ton iPhone est peut-être en mode silencieux (bouton sur le côté) : active « Son même en mode silencieux » ou monte le volume.`;},300);};
+  // Test en deux bips : bip 1 = son du jeu (Web Audio), bip 2 = lecteur classique (comme les vidéos)
+  dlg.querySelector("#set-sound").onclick=()=>{
+    if(L.mute){$("#set-diag").textContent="Le son est coupé dans le jeu : touche « Activer le son ».";return;}
+    Sfx.unlock();Sfx.L();
+    setTimeout(()=>{try{const n=8000*.35,b=new ArrayBuffer(44+n*2),v=new DataView(b),w=(o,t)=>{for(let i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));};
+      w(0,"RIFF");v.setUint32(4,36+n*2,true);w(8,"WAVE");w(12,"fmt ");v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,16000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,"data");v.setUint32(40,n*2,true);
+      for(let i=0;i<n;i++)v.setInt16(44+i*2,Math.sin(i/8000*2*Math.PI*660)*9000*Math.min(1,(n-i)/400),true);
+      new Audio(URL.createObjectURL(new Blob([b],{type:"audio/wav"}))).play().catch(()=>{});}catch(e){}},900);
+    setTimeout(()=>{const ua=navigator.userAgent.match(/OS (\d+)_(\d+)/);
+      $("#set-diag").textContent=`Tu dois entendre 2 bips. Infos pour Claude : état ${Sfx.state()} · iOS ${ua?ua[1]+"."+ua[2]:"?"} · session ${navigator.audioSession?navigator.audioSession.type:"aucune"} · ${matchMedia("(display-mode: standalone)").matches?"appli installée":"navigateur"}`;},1300);};
   const tb=dlg.querySelector("#set-tilt"); if(tb) tb.onclick=async()=>{await Tilt.ask(true);$("#set-diag").textContent=Tilt.on?"Inclinaison activée.":"Accès refusé : autorise « Mouvements et orientation » pour Safari dans les réglages de l'iPhone.";};
   dlg.querySelector("#set-refresh").onclick=async()=>{await act(async()=>{await loadCatalogue();},"À jour");dlg.close();};
   dlg.querySelector("#set-out").onclick=async()=>{dlg.close();await sb.auth.signOut();};
