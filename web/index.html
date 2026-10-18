@@ -937,10 +937,50 @@ const Sfx=(()=>{
   // bloqué (« interrupted » ou « suspended » qui ne repart plus). On en recrée alors un neuf, pendant un toucher.
   let fails=0, lastTry=0;
   const prime=a=>{try{const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);primed=true;}catch(e){}};
-  const tone=(f,t,d,type="sine",g=.12)=>{const a=ctx();if(!a)return;const o=a.createOscillator(),v=a.createGain(),s=a.currentTime+t;o.type=type;o.frequency.value=f;v.gain.setValueAtTime(0,s);v.gain.linearRampToValueAtTime(g,s+.012);v.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(v).connect(a.destination);o.start(s);o.stop(s+d+.05);};
-  const noise=(d,type,f0,f1,g=.2,t=0)=>{const a=ctx();if(!a)return;const n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<n;i++)x[i]=Math.random()*2-1;
+  // Les bruitages sont « cuits » à l'avance en petits sons (OfflineAudioContext), puis joués comme les sons des cartes.
+  // Sur iPhone, c'est le seul chemin fiable : les sons des cartes passaient, les bruitages synthétisés en direct non.
+  let target=null;
+  const OAC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  const baked={};
+  const bake=(key,fn,dur)=>{
+    if(baked[key]) return baked[key];
+    if(!OAC) return null;
+    try{
+      const sr=44100, oc=new OAC(1,Math.ceil(sr*dur),sr);
+      target=oc; try{fn();}finally{target=null;}
+      baked[key]=new Promise(ok=>{oc.oncomplete=e=>ok(e.renderedBuffer);const r=oc.startRendering();if(r&&r.then)r.then(ok).catch(()=>ok(null));});
+    }catch(e){baked[key]=Promise.resolve(null);}
+    return baked[key];
+  };
+  const play=(key,fn,dur)=>{
+    const a=ctx(); if(!a) return;
+    const p=bake(key,fn,dur);
+    if(!p){fn();return;}
+    const t0=performance.now();
+    p.then(buf=>{if(!buf||performance.now()-t0>400)return;const b=ctx();if(!b)return;
+      try{const src=b.createBufferSource(),g=b.createGain();src.buffer=buf;g.gain.value=1;src.connect(g).connect(b.destination);src.start();}catch(e){}});
+  };
+  const tone=(f,t,d,type="sine",g=.12)=>{const a=target||ctx();if(!a)return;const o=a.createOscillator(),v=a.createGain(),s=a.currentTime+t;o.type=type;o.frequency.value=f;v.gain.setValueAtTime(0,s);v.gain.linearRampToValueAtTime(g,s+.012);v.gain.exponentialRampToValueAtTime(.0001,s+d);o.connect(v).connect(a.destination);o.start(s);o.stop(s+d+.05);};
+  const noise=(d,type,f0,f1,g=.2,t=0)=>{const a=target||ctx();if(!a)return;const n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0);for(let i=0;i<n;i++)x[i]=Math.random()*2-1;
     const src=a.createBufferSource(),fl=a.createBiquadFilter(),v=a.createGain(),s=a.currentTime+t;src.buffer=b;fl.type=type;fl.Q.value=1.2;fl.frequency.setValueAtTime(f0,s);fl.frequency.exponentialRampToValueAtTime(f1,s+d);
     v.gain.setValueAtTime(g,s);v.gain.exponentialRampToValueAtTime(.0001,s+d);src.connect(fl).connect(v).connect(a.destination);src.start(s);};
+  // Bruitages : [fonction qui les dessine, durée en secondes]
+  const SND={
+    scrape:[()=>noise(.06,"bandpass",2500,3500,.05),.12],
+    tear:[()=>{noise(.4,"bandpass",700,5000,.35);tone(180,0,.25,"triangle",.08);},.5],
+    whoosh:[()=>noise(.28,"lowpass",4000,300,.18),.35],
+    flip:[()=>noise(.1,"highpass",1800,4000,.14),.16],
+    rise:[()=>noise(.5,"lowpass",300,1200,.12),.6],
+    C:[()=>tone(520,0,.12,"triangle",.07),.22],
+    R:[()=>{tone(880,0,.25,"sine",.12);tone(1320,.08,.35,"sine",.1);},.5],
+    E:[()=>[660,880,1100,1320].forEach((f,i)=>tone(f,i*.07,.4,"triangle",.1)),.75],
+    rumble:[()=>{tone(48,0,1.1,"sawtooth",.05);noise(1,"lowpass",120,600,.2);},1.2],
+    L:[()=>{tone(65,0,.9,"sine",.25);[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,.05+i*.075,.9,"triangle",.11));[1047,1319,1568].forEach(f=>tone(f,.55,1.4,"sine",.06));},2.05],
+    holo:[()=>[1568,1976,2349,2637,3136].forEach((f,i)=>tone(f,.15+i*.05,.3,"sine",.05)),.7],
+    drop:[()=>noise(.32,"bandpass",400,3000,.16),.4],
+    impact:[()=>{tone(52,0,.6,"sine",.35);noise(.3,"lowpass",900,80,.3);},.7],
+    crackle:[()=>{noise(.18,"highpass",3000,6000,.08);noise(.4,"lowpass",800,100,.06,.05);},.5],
+  };
   return {
     // À appeler pendant un vrai toucher (touchend / click) : sur iPhone, le son ne peut démarrer qu'à ce moment-là
     unlock(){try{if(navigator.audioSession&&L.forceSound&&navigator.audioSession.type!=="playback")navigator.audioSession.type="playback";}catch(e){}
@@ -969,22 +1009,24 @@ const Sfx=(()=>{
       if(!buf){const el=new Audio(url);el.play().catch(()=>{});this._cur={stop(){el.pause();}};return;}
       const s=a.createBufferSource(),g=a.createGain();s.buffer=buf;g.gain.value=.95;s.connect(g).connect(a.destination);s.start();this._cur=s;},
     stopClip(){try{this._cur&&this._cur.stop();}catch(e){}this._cur=null;},
-    scrape(){noise(.06,"bandpass",2500,3500,.05);},
-    tear(){noise(.4,"bandpass",700,5000,.35);tone(180,0,.25,"triangle",.08);},
-    whoosh(){noise(.28,"lowpass",4000,300,.18);},
-    flip(){noise(.1,"highpass",1800,4000,.14);},
-    rise(){noise(.5,"lowpass",300,1200,.12);},
-    C(){tone(520,0,.12,"triangle",.07);},
-    R(){tone(880,0,.25,"sine",.12);tone(1320,.08,.35,"sine",.1);},
-    E(){[660,880,1100,1320].forEach((f,i)=>tone(f,i*.07,.4,"triangle",.1));},
-    rumble(){tone(48,0,1.1,"sawtooth",.05);noise(1,"lowpass",120,600,.2);},
-    L(){tone(65,0,.9,"sine",.25);[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,.05+i*.075,.9,"triangle",.11));[1047,1319,1568].forEach(f=>tone(f,.55,1.4,"sine",.06));},
-    holo(){[1568,1976,2349,2637,3136].forEach((f,i)=>tone(f,.15+i*.05,.3,"sine",.05));},
-    pop(i){tone(500+i*90,0,.09,"triangle",.07);},
-    clue(i){tone(98+i*24,0,.6,"sine",.28);noise(.35,"lowpass",2500,200,.14);tone(392+i*98,.02,.5,"triangle",.07);},
-    drop(){noise(.32,"bandpass",400,3000,.16);},
-    impact(){tone(52,0,.6,"sine",.35);noise(.3,"lowpass",900,80,.3);},
-    crackle(){noise(.18,"highpass",3000,6000,.08);noise(.4,"lowpass",800,100,.06,.05);},
+    scrape(){play("scrape",SND.scrape[0],SND.scrape[1]);},
+    tear(){play("tear",SND.tear[0],SND.tear[1]);},
+    whoosh(){play("whoosh",SND.whoosh[0],SND.whoosh[1]);},
+    flip(){play("flip",SND.flip[0],SND.flip[1]);},
+    rise(){play("rise",SND.rise[0],SND.rise[1]);},
+    C(){play("C",SND.C[0],SND.C[1]);},
+    R(){play("R",SND.R[0],SND.R[1]);},
+    E(){play("E",SND.E[0],SND.E[1]);},
+    rumble(){play("rumble",SND.rumble[0],SND.rumble[1]);},
+    L(){play("L",SND.L[0],SND.L[1]);},
+    holo(){play("holo",SND.holo[0],SND.holo[1]);},
+    drop(){play("drop",SND.drop[0],SND.drop[1]);},
+    impact(){play("impact",SND.impact[0],SND.impact[1]);},
+    crackle(){play("crackle",SND.crackle[0],SND.crackle[1]);},
+    pop(i){i=Math.max(0,Math.min(20,i|0));play("pop"+i,()=>tone(500+i*90,0,.09,"triangle",.07),.16);},
+    clue(i){i=Math.max(0,Math.min(6,i|0));play("clue"+i,()=>{tone(98+i*24,0,.6,"sine",.28);noise(.35,"lowpass",2500,200,.14);tone(392+i*98,.02,.5,"triangle",.07);},.7);},
+    // Prépare tous les bruitages dès le lancement (calcul silencieux, sans toucher à l'écran)
+    warm(){for(const k in SND) bake(k,SND[k][0],SND[k][1]);for(let i=0;i<10;i++)bake("pop"+i,()=>tone(500+i*90,0,.09,"triangle",.07),.16);},
   };
 })();
 function buzz(p){try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}}
@@ -2990,6 +3032,7 @@ const Install={evt:null,
 Install.init();
 // Le son se débloque au premier vrai toucher (sur iPhone, « appuyer » ne suffit pas : il faut relâcher)
 for(const ev of ["touchend","click","keydown"]) document.addEventListener(ev,()=>Sfx.unlock(),{capture:true,passive:true});
+setTimeout(()=>{try{Sfx.warm();}catch(e){}},1500);
 // Pas de zoom : ni pincement (iPhone ignore user-scalable=no), ni Ctrl + molette
 for(const ev of ["gesturestart","gesturechange","gestureend"]) document.addEventListener(ev,e=>e.preventDefault(),{passive:false});
 document.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault();},{passive:false});
