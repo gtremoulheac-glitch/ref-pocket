@@ -365,6 +365,9 @@ input[type=email],input[type=password],input[type=text]{background:var(--ink);bo
 .pvcol{display:grid;gap:10px;justify-items:center}
 .pv{width:min(260px,70vw)}
 .edform{display:grid;gap:18px;min-width:0}
+.drgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.drgrid input{width:100%}
+.drsum{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5}
 .tgrid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start}
 .tcard select{width:100%}
 .trow{gap:8px;align-items:center;flex-wrap:wrap;margin:-4px 0 12px}
@@ -483,7 +486,7 @@ function renderList(){
   $("#view").innerHTML=`<div style="display:grid;gap:16px">
     <div class="row" style="justify-content:space-between;align-items:flex-end">
       <div style="display:grid;gap:6px"><p class="eyebrow">Catalogue</p><h1>${CARDS.length} cartes</h1><p class="note">${nAct} dans les boosters · ${CARDS.length-nAct} retirée${CARDS.length-nAct>1?"s":""}</p></div>
-      <div class="row"><button class="btn ghost" data-a="tests">🧪 Tests</button><button class="btn ghost" data-a="players">Joueurs</button><button class="btn ghost" data-a="admins">Admins</button><button class="btn ghost" data-a="types">Types (${TYPE_ROWS.length})</button><button class="btn foil" data-a="new">Nouvelle carte</button></div>
+      <div class="row"><button class="btn ghost" data-a="tests">🧪 Tests</button><button class="btn ghost" data-a="drops">🎲 Taux des boosters</button><button class="btn ghost" data-a="players">Joueurs</button><button class="btn ghost" data-a="admins">Admins</button><button class="btn ghost" data-a="types">Types (${TYPE_ROWS.length})</button><button class="btn foil" data-a="new">Nouvelle carte</button></div>
     </div>
     <p class="note dzhint">Astuce : glisse une image sur une carte pour changer son image, ou dans le vide pour créer une nouvelle carte.</p>
     <div class="field"><label for="q">Rechercher</label><input type="text" id="q" value="${esc(q)}" placeholder="Nom ou numéro"></div>
@@ -633,6 +636,46 @@ async function deleteCard(btn){
 }
 
 /* ---------- Admins ---------- */
+/* ---------- Taux de tirage des boosters ---------- */
+const DROP_DEF={r12:15,e3:10,l3:0.5,e4:20,l4:2.5,pity:80,holo:5};
+async function openDrops(){
+  const d=$("#tdlg");
+  const r=await sb.from("settings").select("v").eq("k","drops").maybeSingle();
+  if(r.error){toast("Relance d'abord schema.sql dans Supabase : "+errMsg(r.error));return;}
+  const v={...DROP_DEF,...(r.data?.v||{})};
+  const f=(k,lab,step,max)=>`<div class="field"><label for="dr-${k}">${lab}</label><input type="number" id="dr-${k}" data-dr="${k}" min="0" max="${max}" step="${step}" value="${v[k]}"></div>`;
+  d.innerHTML=`<form class="dlg" id="drform" novalidate>
+    <h2>Taux des boosters</h2>
+    <p class="note">Un booster contient 4 cartes. Les cartes 1 et 2 sont communes ou rares ; les cartes 3 et 4 peuvent être épiques ou légendaires. Les valeurs sont en %.</p>
+    <div class="drgrid">
+      ${f("r12","Cartes 1 et 2 : rare","1",100)}
+      <span></span>
+      ${f("e3","Carte 3 : épique","0.5",100)}
+      ${f("l3","Carte 3 : légendaire","0.1",100)}
+      ${f("e4","Carte 4 : épique","0.5",100)}
+      ${f("l4","Carte 4 : légendaire","0.1",100)}
+      ${f("holo","Holo (chaque carte)","0.5",100)}
+      ${f("pity","Légendaire garantie au plus tard au booster n°","1",1000)}
+    </div>
+    <div class="drsum" id="drsum"></div>
+    <p class="note" id="drmsg" role="status"></p>
+    <div class="row" style="justify-content:space-between"><button type="button" class="btn ghost" data-drreset>Valeurs conseillées</button>
+      <div class="row"><button type="button" class="btn ghost" data-drclose>Fermer</button><button type="submit" class="btn foil">Enregistrer</button></div></div></form>`;
+  const read=()=>{const o={};d.querySelectorAll("[data-dr]").forEach(i=>o[i.dataset.dr]=parseFloat(String(i.value).replace(",","."))||0);return o;};
+  const sum=()=>{const o=read(),pl=1-(1-o.l3/100)*(1-o.l4/100),pe=1-(1-o.e3/100)*(1-o.e4/100);
+    const oneIn=x=>x>0?`1 booster sur ${Math.round(1/x)}`:"jamais";
+    $("#drsum").innerHTML=`<b>Par booster :</b> au moins une légendaire ${(pl*100).toFixed(1)} % (${oneIn(pl)}) · au moins une épique ${(pe*100).toFixed(1)} % (${oneIn(pe)})<br>
+      <b>Sur 100 boosters :</b> environ ${(100*(o.l3+o.l4)/100).toFixed(1)} légendaires, ${(100*(o.e3+o.e4)/100).toFixed(0)} épiques, ${(4*o.holo).toFixed(0)} holos`;};
+  d.querySelectorAll("[data-dr]").forEach(i=>i.oninput=sum); sum();
+  d.querySelector("[data-drclose]").onclick=()=>d.close();
+  d.querySelector("[data-drreset]").onclick=()=>{for(const k in DROP_DEF){const i=d.querySelector(`[data-dr="${k}"]`);if(i)i.value=DROP_DEF[k];}sum();};
+  d.querySelector("#drform").onsubmit=async e=>{e.preventDefault();const m=$("#drmsg");m.textContent="Enregistrement…";
+    const x=await sb.rpc("set_drops",{p:read()});
+    if(x.error){m.textContent=errMsg(x.error);return;}
+    m.textContent="";toast("Taux enregistrés : ils s'appliquent dès le prochain booster.");d.close();};
+  if(!d.open) d.showModal();
+}
+
 /* ---------- Joueurs : liste et suppression ---------- */
 async function openPlayers(){
   const d=$("#tdlg");
@@ -1000,7 +1043,7 @@ const TESTS=[
     <div class="field"><label>Score du bot</label><select name="bot"><option value="">Au hasard (25 à 85)</option><option value="10">Très faible (10)</option><option value="50">Moyen (50)</option><option value="95">Très fort (95)</option></select></div>
     <label class="check"><input type="checkbox" name="tie" value="1"> Forcer l'égalité (passe au rythme)</label>`},
   {k:"pattern",t:"Rythme du choc",d:"Seulement l'épreuve du rythme, pour régler la difficulté.",f:`
-    <div class="field"><label>Nombre de groupes</label><select name="n">${[2,3,4,5,6].map(n=>`<option ${n===4?"selected":""}>${n}</option>`).join("")}</select></div>`},
+    <div class="field"><label>Nombre de groupes</label><select name="n">${[2,3,4,5,6].map(n=>`<option ${n===5?"selected":""}>${n}</option>`).join("")}</select></div>`},
   {k:"prize",t:"Butin de fin de duel",d:"L'écran de fin avec les 6 cartes face cachée, tiré avec les vraies chances. Aucune carte n'est vraiment prise.",f:`
     <div class="field"><label>Résultat</label><select name="res"><option value="win">Victoire (je choisis une carte)</option><option value="lose">Défaite (le bot me prend une carte)</option></select></div>
     <div class="field"><label>Carte dans le deck du bot</label><select name="opp">${cardOpts()}</select></div>`},
@@ -1030,6 +1073,7 @@ document.addEventListener("click",e=>{
   if(a==="types") return openTypes(null);
   if(a==="admins") return openAdmins();
   if(a==="players") return openPlayers();
+  if(a==="drops") return openDrops();
   if(a==="tests"){renderTests();scrollTo(0,0);return;}
   if(b.dataset.tryk){const q=new URLSearchParams({test:b.dataset.tryk,card:ED.c.id});if(ED.holo)q.set("holo","1");window.open("./?"+q,"_blank");return;}
   if(a==="delete") return deleteCard(b);

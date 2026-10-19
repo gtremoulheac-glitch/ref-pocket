@@ -666,7 +666,10 @@ button.prize-c.dim{opacity:.4}
 .seg .dot{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:99px;background:var(--foil);color:#1a1030;font-size:11px;margin-left:4px;padding:0 5px}
 .tipbox{background:color-mix(in srgb,var(--foil) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--foil) 40%,transparent);border-radius:12px;padding:10px 12px;font-size:14px}
 .grid>button.upready{position:relative}
-.upflag{position:absolute;left:50%;bottom:-6px;translate:-50% 0;white-space:nowrap;background:var(--foil);color:#1a1030;font-size:10px;font-weight:800;border-radius:99px;padding:2px 7px;box-shadow:0 4px 12px -4px rgba(0,0,0,.6);animation:upPulse 1.8s ease-in-out infinite}
+.colsort{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.colsort label{display:grid;gap:4px;font-size:12px;font-weight:700;color:var(--muted)}
+.colsort select{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--fg);border-radius:10px;padding:9px 10px;font:inherit;font-size:14px}
+.upflag{position:absolute;z-index:5;left:50%;bottom:-6px;translate:-50% 0;white-space:nowrap;background:var(--foil);color:#1a1030;font-size:10px;font-weight:800;border-radius:99px;padding:2px 7px;box-shadow:0 4px 12px -4px rgba(0,0,0,.6);animation:upPulse 1.8s ease-in-out infinite}
 @keyframes upPulse{50%{transform:scale(1.08)}}
 .upbox{display:grid;gap:8px;background:var(--panel-2);border-radius:12px;padding:12px;width:100%;max-width:360px;text-align:left}
 .ustars{display:flex;gap:2px;font-size:20px;color:color-mix(in srgb,var(--muted) 40%,transparent)}
@@ -1460,7 +1463,7 @@ async function localChoc(si,ai,ti){
   const sa=si===0?mine:bot, sd=si===0?bot:mine;
   let win=sa>=15&&sa>sd, tie=false, pat=false;
   if(sa===sd&&sa>=15){
-    tie=true; const pt=Array.from({length:4},()=>1+Math.floor(Math.random()*3));
+    tie=true; const pt=Array.from({length:5},()=>1+Math.floor(Math.random()*3));
     if(si===0) pat=await Choc.pattern(pt);
     else{Choc.waitPattern(pt,B.bot);await new Promise(r=>setTimeout(r,3500));pat=Math.random()<.5;}
     if(B!==g) return; win=pat;
@@ -1620,8 +1623,19 @@ function viewCollection(){
   const owned=CARDS.filter(c=>c.active&&count(c.id)>0).length;
   const dups=CARDS.reduce((s,c)=>s+Math.max(0,count(c.id)-1),0);
   const order=["L","E","R","C"].filter(r=>colFilter==="all"||colFilter===r);
+  const show=L.colShow||"all", sort=L.colSort||"num";
+  const keep=c=>{const o=own(c.id),n=o.n+o.h;
+    return show==="all"||(show==="own"&&n>0)||(show==="miss"&&n===0)||(show==="up"&&n>0&&canUpgrade(c.id))||(show==="holo"&&o.h>0)||(show==="dup"&&n>1)||(show==="lvl"&&lvl(c.id)>0);};
+  const sorter={num:(a,b)=>((count(b.id)>0)-(count(a.id)>0))||a.n-b.n,
+    note:(a,b)=>((count(b.id)>0)-(count(a.id)>0))||ovr(myCard(b.id))-ovr(myCard(a.id))||a.n-b.n,
+    lvl:(a,b)=>lvl(b.id)-lvl(a.id)||((count(b.id)>0)-(count(a.id)>0))||a.n-b.n,
+    count:(a,b)=>count(b.id)-count(a.id)||a.n-b.n,
+    up:(a,b)=>(canUpgrade(b.id)-canUpgrade(a.id))||((count(b.id)>0)-(count(a.id)>0))||a.n-b.n,
+    type:(a,b)=>((count(b.id)>0)-(count(a.id)>0))||String(TYPES[a.type]?.name||a.type).localeCompare(String(TYPES[b.type]?.name||b.type),"fr")||a.n-b.n,
+    name:(a,b)=>((count(b.id)>0)-(count(a.id)>0))||a.name.localeCompare(b.name,"fr"),
+    recent:(a,b)=>{const t=id=>mineOf(id).reduce((m,i)=>Math.max(m,new Date(i.obtained_at).getTime()||0),0);return t(b.id)-t(a.id)||a.n-b.n;}}[sort]||((a,b)=>a.n-b.n);
   const groups=order.map(r=>{
-    const all=CARDS.filter(c=>c.r===r&&(c.active||count(c.id)>0)).sort((a,b)=>((count(b.id)>0)-(count(a.id)>0))||a.n-b.n);
+    const all=CARDS.filter(c=>c.r===r&&(c.active||count(c.id)>0)&&keep(c)).sort(sorter);
     const got=all.filter(c=>count(c.id)>0).length;
     if(!all.length) return "";
     return `<section class="rgroup"><h2 class="rhead r-${r}"><span>${RARITIES[r].pip} ${RARITIES[r].name}s</span><span class="note">${got} / ${all.length}</span></h2>
@@ -1639,7 +1653,11 @@ function viewCollection(){
       <button class="chip" data-filter="all" aria-pressed="${colFilter==="all"}">Toutes</button>
       ${["L","E","R","C"].map(r=>`<button class="chip" data-filter="${r}" aria-pressed="${colFilter===r}"><span class="rpip r-${r}">${RARITIES[r].pip}</span>${RARITIES[r].name}s</button>`).join("")}
     </div>
-    ${groups}
+    <div class="colsort">
+      <label><span>Afficher</span><select id="colshow">${[["all","Toutes les cartes"],["own","Possédées"],["miss","Manquantes"],["up","Améliorables"],["lvl","Déjà améliorées"],["dup","Avec doublons"],["holo","Holos"]].map(([k,t])=>`<option value="${k}" ${show===k?"selected":""}>${t}</option>`).join("")}</select></label>
+      <label><span>Trier par</span><select id="colsort">${[["num","Numéro"],["note","Note"],["lvl","Niveau"],["up","Améliorables d'abord"],["count","Nombre d'exemplaires"],["recent","Les plus récentes"],["type","Type"],["name","Nom (A → Z)"]].map(([k,t])=>`<option value="${k}" ${sort===k?"selected":""}>${t}</option>`).join("")}</select></label>
+    </div>
+    ${groups||'<div class="empty-state">Aucune carte ne correspond à ce filtre.</div>'}
   </div>`;
 }
 function viewMarket(){
@@ -2256,6 +2274,10 @@ function viewSocial(){
     </section>
   </div>`;
 }
+document.addEventListener("change",e=>{
+  if(e.target.id==="colshow"){L.colShow=e.target.value;saveL();render();}
+  if(e.target.id==="colsort"){L.colSort=e.target.value;saveL();render();}
+});
 document.addEventListener("input",e=>{if(e.target.id!=="plsearch")return;const q=e.target.value.trim().toLowerCase();
   document.querySelectorAll("[data-pl]").forEach(r=>{r.hidden=!!q&&!r.dataset.pl.includes(q);});});
 
@@ -2756,7 +2778,7 @@ const Test={
     const sa=atk?sc:bot, sd=atk?bot:sc;
     let win=sa>=15&&sa>sd, tie=false, pat=false;
     if(sa===sd&&sa>=15){
-      tie=true; const pt=Array.from({length:4},()=>1+Math.floor(Math.random()*3));
+      tie=true; const pt=Array.from({length:5},()=>1+Math.floor(Math.random()*3));
       if(atk) pat=await Choc.pattern(pt); else{Choc.waitPattern(pt,"Bot de test");await new Promise(r=>setTimeout(r,3500));pat=Math.random()<.5;}
       win=pat;
     }
@@ -2764,7 +2786,7 @@ const Test={
     toast(`Test terminé : toi ${sc}, bot ${bot}${tie?" (égalité)":""}`);
   },
   async pattern(){
-    const n=Math.max(2,Math.min(6,this.num("n",4)));
+    const n=Math.max(2,Math.min(6,this.num("n",5)));
     const pt=Array.from({length:n},()=>1+Math.floor(Math.random()*3));
     const ok=await Choc.pattern(pt); Choc.close();
     toast(ok?"Rythme réussi !":"Rythme raté.");

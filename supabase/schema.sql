@@ -307,13 +307,52 @@ begin
 end $$;
 
 -- Ouvre un booster (gratuit ou acheté 100 K). Tout le tirage se fait ici.
+-- Réglages du jeu modifiables dans l'admin (taux de tirage des boosters…)
+create table if not exists public.settings (
+  k text primary key,
+  v jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.settings enable row level security;
+drop policy if exists "lecture reglages" on public.settings;
+create policy "lecture reglages" on public.settings for select using (true);
+-- Taux par défaut (en %) : r12 = rare sur les cartes 1 et 2 ; e3/l3 = épique/légendaire sur la 3e ; e4/l4 sur la 4e ;
+-- pity = légendaire garantie au plus tard à ce booster ; holo = chance d'holo par carte
+insert into public.settings(k, v) values ('drops', '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5}')
+on conflict (k) do nothing;
+create or replace function public._drops() returns jsonb language sql stable as $$
+  select '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5}'::jsonb
+         || coalesce((select v from public.settings where k = 'drops'), '{}'::jsonb) $$;
+
+-- Modifier les taux (admin)
+create or replace function public.set_drops(p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare v jsonb := '{}'::jsonb; key text; n numeric;
+begin
+  if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
+  foreach key in array array['r12','e3','l3','e4','l4','holo'] loop
+    n := (p->>key)::numeric;
+    if n is null or n < 0 or n > 100 then raise exception 'Taux invalide pour %', key; end if;
+    v := v || jsonb_build_object(key, n);
+  end loop;
+  if (p->>'e3')::numeric + (p->>'l3')::numeric > 100 or (p->>'e4')::numeric + (p->>'l4')::numeric > 100 then
+    raise exception 'Épique + légendaire ne peut pas dépasser 100 %%';
+  end if;
+  n := (p->>'pity')::numeric;
+  if n is null or n < 1 or n > 1000 then raise exception 'La garantie doit être entre 1 et 1000 boosters'; end if;
+  v := v || jsonb_build_object('pity', n::int);
+  insert into settings(k, v, updated_at) values ('drops', v, now())
+    on conflict (k) do update set v = excluded.v, updated_at = now();
+  return v;
+end $$;
+
 create or replace function public.open_booster(p_paid boolean default false) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
   u uuid := public._uid();
   pr profiles;
   rs text[] := array[]::text[];
-  r text; x float; i int;
+  r text; x float; i int; dr jsonb;
   c text; h boolean; is_new boolean; inst bigint;
   out jsonb := '[]'::jsonb;
 begin
@@ -330,21 +369,21 @@ begin
      where id = u;
   end if;
 
-  -- Taux de tirage par emplacement
+  -- Taux de tirage par emplacement (réglables dans l'admin, table settings, clé « drops »)
+  dr := _drops();
   for i in 1..4 loop
     x := random() * 100;
-    if i <= 2 then r := case when x < 85 then 'C' else 'R' end;
-    -- Légendaire : 0,8 % sur la 3e carte et 3,2 % sur la 4e, soit environ 4 % par booster
-    elsif i = 3 then r := case when x < 80 then 'R' when x < 99.2 then 'E' else 'L' end;
-    else r := case when x < 62 then 'R' when x < 96.8 then 'E' else 'L' end;
+    if i <= 2 then r := case when x < (dr->>'r12')::numeric then 'R' else 'C' end;
+    elsif i = 3 then r := case when x < (dr->>'l3')::numeric then 'L' when x < (dr->>'l3')::numeric + (dr->>'e3')::numeric then 'E' else 'R' end;
+    else r := case when x < (dr->>'l4')::numeric then 'L' when x < (dr->>'l4')::numeric + (dr->>'e4')::numeric then 'E' else 'R' end;
     end if;
     rs := rs || r;
   end loop;
 
-  -- Compteur de pitié : une légendaire au plus tard au 60e booster
+  -- Compteur de pitié : une légendaire au plus tard au Ne booster (réglable)
   if 'L' = any(rs) then
     update profiles set pity = 0 where id = u;
-  elsif pr.pity >= 59 then
+  elsif pr.pity >= (dr->>'pity')::int - 1 then
     rs[4] := 'L'; update profiles set pity = 0 where id = u;
   else
     update profiles set pity = pity + 1 where id = u;
@@ -353,7 +392,7 @@ begin
   for i in 1..4 loop
     select id into c from cards where rarity = rs[i] and active order by random() limit 1;
     if c is null then raise exception 'Aucune carte active de rareté %', rs[i]; end if;
-    h := random() < 0.05;
+    h := random() * 100 < (dr->>'holo')::numeric;
     is_new := not exists (select 1 from card_instances where owner = u and card_id = c);
     insert into card_instances(card_id, owner, holo) values (c, u, h) returning id into inst;
     out := out || jsonb_build_object('instance_id', inst, 'card_id', c, 'holo', h, 'is_new', is_new);
@@ -1267,7 +1306,7 @@ begin
   sd := coalesce((c #>> array['sc', (1 - who)::text])::int, 0);
   if sa = sd and sa >= 15 then
     -- Égalité : place au rythme
-    select jsonb_agg(1 + floor(random() * 3)::int) into pat from generate_series(1, 4);
+    select jsonb_agg(1 + floor(random() * 3)::int) into pat from generate_series(1, 5);
     c := c || jsonb_build_object('phase', 'pattern', 'pat', pat, 'pat_at', extract(epoch from now()), 'sa', sa, 'sd', sd);
     st := jsonb_set(st, '{choc}', c);
     st := jsonb_set(st, '{ev}', jsonb_build_array(jsonb_build_object('k', 'choctie', 's', who, 'sa', sa, 'sd', sd)));
@@ -1618,7 +1657,7 @@ revoke all on function public.create_profile(text), public.my_profile(), public.
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real)
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb)
   from public, anon;
 grant execute on function public.create_profile(text), public.my_profile(), public.open_booster(boolean),
   public.discard_card(bigint), public.list_card(bigint,int), public.cancel_listing(bigint), public.buy_listing(bigint),
@@ -1629,5 +1668,5 @@ grant execute on function public.create_profile(text), public.my_profile(), publ
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real)
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb)
   to authenticated;
