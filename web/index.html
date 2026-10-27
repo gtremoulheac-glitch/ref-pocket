@@ -746,7 +746,7 @@ details.hist[open] summary{margin-bottom:8px}
     <div class="logo">REF<b>POCKET</b></div>
     <div class="wallet">
       <span class="pill" id="pill-kheys" title="Tes Kheys"><span class="k">K</span><span id="kheys">0</span></span>
-      <span class="pill" id="pill-boost" title="Boosters disponibles">▣ <span id="boostcount">0</span>/2 <span id="boosttimer" style="color:var(--muted)"></span></span>
+      <span class="pill" id="pill-boost" title="Boosters disponibles">▣ <span id="boostcount">0</span> <span id="boosttimer" style="color:var(--muted)"></span></span>
       <button class="iconbtn" id="btn-settings" aria-label="Réglages" data-act="settings">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
       </button>
@@ -786,7 +786,7 @@ const sb = configured && window.supabase ? window.supabase.createClient(CFG.supa
    ========================================================= */
 let TYPES = {}, CARDS = [], BYID = {}, BYR = {}, MATCH = {};
 // Règles (doivent rester alignées avec supabase/schema.sql)
-const REFILL_MS = 3600*1000, MAX_STOCK = 2, BOOSTER_PRICE = 100, PITY = 60;
+const REFILL_MS = 3600*1000, MAX_STOCK = 2, BOOSTER_PRICE = 100, PACK_PRICE = 900, PITY = 60;
 const DUEL_WIN = 30, DUEL_LOSS = 10, DUEL_DAILY = 10, DECK_SIZE = 6, DECK_MAX = {L:1,E:2};
 const BOTS = ["LeKheyDu38","Ratio_King","Askip_Lucas","MissAllôQuoi","JusteLeblanc"];
 
@@ -1409,14 +1409,18 @@ function resolveDeaths(){
         if(u&&u.hp<=0){
           log(`${nm(u,si)} est éliminée.`); ev({k:"ko",s:si,i});
           s.active[i]=null; hypeU(si,22);
-          if(flags(u).lastword){fxev(si,i,"Dernier mot","2 dégâts à tous");log(`Dernier mot de « ${u.c.name} » : 2 dégâts à tout le camp adverse.`);for(let k=0;k<3;k++){const x=unitAt(1-si,k);if(x&&x.hp>0)dmgU(1-si,k,flags(u).lastword);}}
+          if(flags(u).lastword){const n=flags(u).lastword;fxev(si,i,"Dernier mot",`${n} dégât${n>1?"s":""} à tous`);log(`Dernier mot de « ${u.c.name} » : ${n} dégât${n>1?"s":""} à tout le camp adverse.`);for(let k=0;k<3;k++){const x=unitAt(1-si,k);if(x&&x.hp>0)dmgU(1-si,k,flags(u).lastword);}}
           s.active.forEach((a,k)=>{if(a&&flags(a).seum){a.p+=2;fxev(si,k,"Le seum","+2 PUN");log(`Le seum monte : « ${a.c.name} » gagne +2 en Punchline.`);}});
           const nx=s.reserve.shift();
           if(nx){s.active[i]=nx;log(`« ${nx.c.name} » entre sur le terrain.`);ev({k:"enter",s:si,i});enter(nx,si);}
           again=true;
         }}}
   }
-  for(const si of [0,1]) if(B.sides[si].active.every(a=>!a)&&!B.sides[si].reserve.length){B.over=si===0?"lose":"win";}
+  // Les deux camps vidés en même temps : c'est le joueur qui a joué le coup qui gagne
+  const empty=si=>B.sides[si].active.every(a=>!a)&&!B.sides[si].reserve.length;
+  if(empty(0)&&empty(1)) B.over=B.turn===0?"win":"lose";
+  else if(empty(0)) B.over="lose";
+  else if(empty(1)) B.over="win";
 }
 function attack(si,ai,ti){
   const o=1-si,a=unitAt(si,ai),t=unitAt(o,ti);
@@ -1570,7 +1574,7 @@ function renderTop(){
   if(!S.me) return;
   $("#kheys").textContent=fmt(S.me.kheys);
   const b=boostersNow();
-  $("#boostcount").textContent=b;
+  $("#boostcount").textContent=b>MAX_STOCK?String(b):`${b}/${MAX_STOCK}`;
   $("#boosttimer").textContent=b<MAX_STOCK?"· "+dur(nextBoosterMs()):"";
   const nb=$("#navbadge"); nb.hidden=b<1; nb.textContent=b;
   const tb=$("#tradebadge"), n=incomingTrades().length+incomingFriendReqs().length; tb.hidden=!n; tb.textContent=n;
@@ -1603,6 +1607,7 @@ function viewBoosters(){
       <div class="row">
         <button class="btn foil" data-act="open" ${b<1?"disabled":""}>Ouvrir un booster</button>
         <button class="btn ghost" data-act="buyopen" ${S.me.kheys<BOOSTER_PRICE?"disabled":""}>Acheter · ${BOOSTER_PRICE} K</button>
+        <button class="btn ghost" data-act="buypack" ${S.me.kheys<PACK_PRICE?"disabled":""}>Pack de 10 · ${PACK_PRICE} K</button>
       </div>
       <p class="note">${owned} / ${albumSize()} cartes découvertes</p>
     </div>
@@ -2814,6 +2819,7 @@ document.addEventListener("click",e=>{
   const a=t.dataset.act;
   if(a==="open") return openBooster(false);
   if(a==="buyopen") return openBooster(true);
+  if(a==="buypack"){if(!confirmTap(t,`Confirmer · ${PACK_PRICE} K`))return;return act(()=>sb.rpc("buy_booster_pack"),"10 boosters ajoutés à ta réserve !");}
   if(a==="settings") return S.me&&openSettings();
   if(a==="newtrade") return openNewTrade();
   if(a==="autodeck"){L.deck=autoDeck();L.holo={};L.deck.forEach(id=>{if(own(id).h>0)L.holo[id]=true;});saveL();return render();}

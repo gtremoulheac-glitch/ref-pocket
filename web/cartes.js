@@ -31,7 +31,7 @@ const FX = {
   rage:{name:"Vénère",            desc:"Gagne +1 en Punchline chaque fois qu'elle encaisse un coup sans tomber.", rage:true},
   shield:{name:"Fake news",       desc:"La première attaque qu'elle subit ne lui fait aucun dégât.", shield:true},
   hype:{name:"Hype",              desc:"À son entrée, les autres cartes alliées gagnent +1 en Punchline.", hypeEnter:1},
-  lastword:{name:"Dernier mot",   desc:"Quand elle est éliminée, inflige 2 dégâts à toutes les cartes adverses.", lastword:2},
+  lastword:{name:"Dernier mot",   desc:"Quand elle est éliminée, inflige 1 dégât à toutes les cartes adverses.", lastword:1},
   clash:{name:"Clash",            desc:"+2 dégâts contre les épiques et les légendaires.", clash:2},
   malaise:{name:"Malaise",        desc:"Chaque attaque fait perdre 1 en Punchline à sa cible.", malaise:true},
   expose:{name:"Exposé",          desc:"Chaque attaque fait perdre 1 en Aura à sa cible.", expose:true},

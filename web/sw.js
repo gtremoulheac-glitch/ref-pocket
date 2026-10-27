@@ -1,6 +1,6 @@
 // Service worker : rend l'appli installable et garde l'interface en cache.
 // Les données du jeu (Supabase) ne sont jamais mises en cache : elles viennent toujours du serveur.
-const CACHE = "refmaster-v46";
+const CACHE = "refmaster-v47";
 const SHELL = ["./", "index.html", "config.js", "cartes.js", "cartes.css", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "fonts/fonts.css",
   "fonts/bowlby-one-latin-400-normal.woff2", "fonts/figtree-latin-400-normal.woff2", "fonts/figtree-latin-700-normal.woff2", "fonts/figtree-latin-800-normal.woff2"];

@@ -346,6 +346,18 @@ begin
   return v;
 end $$;
 
+-- Pack de 10 boosters pour 900 Kheys (au lieu de 1 000 à l'unité) : ils s'ajoutent à la réserve
+create or replace function public.buy_booster_pack() returns int
+language plpgsql security definer set search_path = public as $$
+declare u uuid := public._uid(); n int;
+begin
+  perform _refill(u);
+  perform 1 from profiles where id = u for update;
+  perform _move_kheys(u, -900, 'achat_pack_10');
+  update profiles set boosters = boosters + 10, last_refill = now() where id = u returning boosters into n;
+  return n;
+end $$;
+
 create or replace function public.open_booster(p_paid boolean default false) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -871,11 +883,11 @@ begin
           st := public._du_set(st, s, i, null);
           st := public._du_hype(st, s, 22);
           if u->>'fx' = 'lastword' then
-            st := public._du_fxev(st, s, i, 'Dernier mot', '2 dégâts à tous');
-            st := public._du_log(st, format('Dernier mot de « %s » : 2 dégâts à tout le camp adverse.', u->>'name'));
+            st := public._du_fxev(st, s, i, 'Dernier mot', '1 dégât à tous');
+            st := public._du_log(st, format('Dernier mot de « %s » : 1 dégât à tout le camp adverse.', u->>'name'));
             for k in 0..2 loop
               x := public._du_get(st, 1 - s, k);
-              if x is not null and (x->>'hp')::int > 0 then st := public._du_dmg(st, 1 - s, k, 2); end if;
+              if x is not null and (x->>'hp')::int > 0 then st := public._du_dmg(st, 1 - s, k, 1); end if;
             end loop;
           end if;
           for k in 0..2 loop
@@ -899,12 +911,20 @@ begin
       end loop;
     end loop;
   end loop;
-  for s in 0..1 loop
-    if public._du_get(st, s, 0) is null and public._du_get(st, s, 1) is null and public._du_get(st, s, 2) is null
-       and jsonb_array_length(st #> array['sides', s::text, 'reserve']) = 0 then
-      st := jsonb_set(st, '{winner}', to_jsonb(1 - s));
+  -- Fin de partie. Si les deux camps sont vidés en même temps (Dernier mot contre Dernier mot…),
+  -- c'est le joueur qui a joué le coup qui gagne : c'est son action qui a éliminé l'adversaire en premier.
+  declare e0 boolean; e1 boolean;
+  begin
+    if jsonb_typeof(st->'winner') = 'number' then return st; end if;   -- déjà décidé plus tôt dans ce coup
+    e0 := public._du_get(st, 0, 0) is null and public._du_get(st, 0, 1) is null and public._du_get(st, 0, 2) is null
+          and jsonb_array_length(st #> array['sides', '0', 'reserve']) = 0;
+    e1 := public._du_get(st, 1, 0) is null and public._du_get(st, 1, 1) is null and public._du_get(st, 1, 2) is null
+          and jsonb_array_length(st #> array['sides', '1', 'reserve']) = 0;
+    if e0 and e1 then st := jsonb_set(st, '{winner}', to_jsonb(coalesce((st->>'turn')::int, 0)));
+    elsif e0 then st := jsonb_set(st, '{winner}', to_jsonb(1));
+    elsif e1 then st := jsonb_set(st, '{winner}', to_jsonb(0));
     end if;
-  end loop;
+  end;
   return st;
 end $$;
 
@@ -1657,7 +1677,7 @@ revoke all on function public.create_profile(text), public.my_profile(), public.
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb)
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack()
   from public, anon;
 grant execute on function public.create_profile(text), public.my_profile(), public.open_booster(boolean),
   public.discard_card(bigint), public.list_card(bigint,int), public.cancel_listing(bigint), public.buy_listing(bigint),
@@ -1668,5 +1688,5 @@ grant execute on function public.create_profile(text), public.my_profile(), publ
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb)
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack()
   to authenticated;
