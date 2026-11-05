@@ -51,6 +51,16 @@ create table if not exists public.cards (
 alter table public.cards add column if not exists image text;
 alter table public.cards add column if not exists audio text;
 alter table public.cards add column if not exists video text;   -- vidéo des légendaires
+-- Génération 2 : deuxième collection, avec ses propres boosters.
+-- draft = en préparation : invisible pour les joueurs tant qu'un admin ne l'a pas publiée.
+alter table public.cards add column if not exists gen int not null default 1;
+alter table public.cards add column if not exists draft boolean not null default false;
+alter table public.cards add column if not exists proposed_by uuid;   -- joueur qui a proposé la réf
+do $gen$ begin
+  if not exists (select 1 from pg_constraint where conname = 'cards_gen_check') then
+    alter table public.cards add constraint cards_gen_check check (gen in (1, 2));
+  end if;
+end $gen$;
 
 -- ---------------------------------------------------------------------
 -- 2. Joueurs et cartes possédées
@@ -159,7 +169,6 @@ drop policy if exists "lecture items"     on public.trade_items;
 
 create policy "lecture types"       on public.types          for select using (true);
 create policy "lecture matchups"    on public.type_matchups  for select using (true);
-create policy "lecture cartes"      on public.cards          for select using (true);
 create policy "lecture profils"     on public.profiles       for select to authenticated using (true);
 -- On ne voit que ses propres cartes, celles en vente et celles des échanges auxquels on participe
 create policy "lecture exemplaires" on public.card_instances for select to authenticated using (
@@ -178,6 +187,9 @@ create policy "lecture items"       on public.trade_items    for select to authe
 create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select coalesce((select is_admin from public.profiles where id = auth.uid()), false) $$;
+
+-- Les cartes en préparation (draft) ne sont visibles que des admins
+create policy "lecture cartes" on public.cards for select using (not draft or public.is_admin());
 
 drop policy if exists "admin cartes"   on public.cards;
 drop policy if exists "admin types"    on public.types;
@@ -358,7 +370,12 @@ begin
   return n;
 end $$;
 
-create or replace function public.open_booster(p_paid boolean default false) returns jsonb
+-- Une génération peut sortir en booster quand chaque rareté a au moins une carte publiée
+create or replace function public._gen_ready(g int) returns boolean language sql stable as $$
+  select (select count(distinct rarity) from public.cards where gen = g and active and not draft) = 4 $$;
+
+drop function if exists public.open_booster(boolean);
+create or replace function public.open_booster(p_paid boolean default false, p_gen int default 1) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
   u uuid := public._uid();
@@ -371,6 +388,9 @@ begin
   perform _refill(u);
   select * into pr from profiles where id = u for update;
   if not found then raise exception 'Profil introuvable'; end if;
+  p_gen := coalesce(p_gen, 1);
+  if p_gen not in (1, 2) then raise exception 'Génération inconnue'; end if;
+  if not _gen_ready(p_gen) then raise exception 'Les boosters de la génération % ne sont pas encore disponibles', p_gen; end if;
 
   if p_paid then
     perform _move_kheys(u, -100, 'achat_booster');
@@ -402,7 +422,7 @@ begin
   end if;
 
   for i in 1..4 loop
-    select id into c from cards where rarity = rs[i] and active order by random() limit 1;
+    select id into c from cards where rarity = rs[i] and active and not draft and gen = p_gen order by random() limit 1;
     if c is null then raise exception 'Aucune carte active de rareté %', rs[i]; end if;
     h := random() * 100 < (dr->>'holo')::numeric;
     is_new := not exists (select 1 from card_instances where owner = u and card_id = c);
@@ -864,7 +884,28 @@ begin
       st := public._du_log(st, format('Débarquement ! « %s » inflige 2 dégâts à « %s ».', u->>'name', public._du_get(st, 1 - s, pick)->>'name'));
       st := public._du_dmg(st, 1 - s, pick, 2);
     end if;
+  elsif fx = 'badbuzz' then
+    st := public._du_fxev(st, s, i, 'Bad buzz', '1 dégât à tous');
+    st := public._du_log(st, format('Bad buzz ! « %s » inflige 1 dégât à tout le camp adverse.', u->>'name'));
+    for k in 0..2 loop
+      x := public._du_get(st, 1 - s, k);
+      if x is not null and (x->>'hp')::int > 0 then st := public._du_dmg(st, 1 - s, k, 1); end if;
+    end loop;
   end if;
+  return st;
+end $$;
+
+-- En direct (Gén. 2) : après chaque attaque de son camp, récupère 1 de Viralité
+create or replace function public._du_live(st jsonb, s int) returns jsonb language plpgsql as $$
+declare k int; x jsonb;
+begin
+  for k in 0..2 loop
+    x := public._du_get(st, s, k);
+    if x is not null and x->>'fx' = 'live' and (x->>'hp')::int > 0 and (x->>'hp')::int < (x->>'max')::int then
+      st := public._du_fxev(st, s, k, 'En direct', '+1 VIR');
+      st := public._du_heal(st, s, k, 1);
+    end if;
+  end loop;
   return st;
 end $$;
 
@@ -941,6 +982,10 @@ begin
   adv := public._du_mult(a->>'type', t->>'type') > 1;
   raw := round((a->>'p')::int * public._du_mult(a->>'type', t->>'type'));
   if fx = 'clash' and t->>'r' in ('E','L') then raw := raw + 2; end if;
+  if fx = 'feat' then
+    raw := raw + (select count(*)::int from generate_series(0, 2) g
+                   where g <> ai and public._du_get(st, s, g)->>'type' = a->>'type');
+  end if;
   if coalesce((a->>'holo')::boolean, false) and not coalesce((a->>'hu')::boolean, false) then
     raw := raw + 3; holo := true;
     st := public._du_set(st, s, ai, jsonb_set(jsonb_set(a, '{hidden}', 'false'), '{hu}', 'true'));
@@ -961,6 +1006,13 @@ begin
     st := public._du_fxev(st, s, ai, 'Irrévocable', 'Exécution');
     st := public._du_log(st, format('Sentence irrévocable : « %s » est exécutée.', t->>'name'));
   end if;
+  -- Ghosting (Gén. 2) : une chance sur 3 d'esquiver complètement l'attaque
+  if tfx = 'ghost' and random() < 1.0 / 3 then
+    st := public._du_fxev(st, o, ti, 'Ghosting', 'Esquivé !');
+    st := public._du_log(st, format('Ghosting ! « %s » esquive l''attaque de « %s ».', t->>'name', a->>'name'));
+    st := jsonb_set(st, '{hit}', jsonb_build_object('s', o, 'i', ti, 'dmg', 0));
+    return public._du_resolve(public._du_live(st, s));
+  end if;
   -- Ratio : la première attaque subie est renvoyée
   if coalesce((t->>'reflect')::boolean, false) then
     st := public._du_set(st, o, ti, jsonb_set(t, '{reflect}', 'false'));
@@ -968,7 +1020,7 @@ begin
     st := public._du_log(st, format('Ratio ! « %s » renvoie %s dégât%s à « %s ».', t->>'name', dmg, case when dmg > 1 then 's' else '' end, a->>'name'));
     st := public._du_dmg(st, s, ai, dmg);
     st := jsonb_set(st, '{hit}', jsonb_build_object('s', s, 'i', ai, 'dmg', dmg));
-    return public._du_resolve(st);
+    return public._du_resolve(public._du_live(st, s));
   end if;
   shielded := coalesce((t->>'shield')::boolean, false);
   st := public._du_log(st, format('« %s » attaque « %s » : −%s%s.', a->>'name', t->>'name', dmg, case when adv then ' (avantage de type)' else '' end));
@@ -1002,6 +1054,15 @@ begin
       st := public._du_fxev(st, s, ai, 'Double tap', '+1 dégât');
       st := public._du_dmg(st, o, ti, 1);
     end if;
+    -- Cancel (Gén. 2) : la première carte touchée qui a une compétence la perd pour tout le duel
+    a := public._du_get(st, s, ai); x := public._du_get(st, o, ti);
+    if fx = 'cancel' and not coalesce((a->>'used')::boolean, false) and x is not null and (x->>'hp')::int > 0 and x->>'fx' is not null then
+      st := public._du_set(st, o, ti, x || jsonb_build_object('fx', null, 'cx', true, 'shield', false, 'reflect', false, 'hidden', false));
+      st := public._du_set(st, s, ai, jsonb_set(a, '{used}', 'true'));
+      st := public._du_fxev(st, o, ti, 'Cancel', 'Compétence supprimée');
+      st := public._du_log(st, format('Cancel ! « %s » perd sa compétence.', x->>'name'));
+      tfx := null;
+    end if;
   end if;
   if tfx = 'thorns' then
     st := public._du_fxev(st, o, ti, 'Piquant', '1 dégât renvoyé');
@@ -1023,7 +1084,14 @@ begin
       st := public._du_dmg(st, o, pick, spl);
     end if;
   end if;
-  return public._du_resolve(st);
+  -- Abonne-toi (Gén. 2) : quand elle élimine sa cible, +1 Punchline et +2 Viralité
+  if fx = 'abonne' and coalesce((public._du_get(st, o, ti)->>'hp')::int, 0) <= 0 and (public._du_get(st, s, ai)->>'hp')::int > 0 then
+    st := public._du_stat(st, s, ai, 'p', 1);
+    st := public._du_fxev(st, s, ai, 'Abonne-toi', '+1 PUN +2 VIR');
+    st := public._du_log(st, format('Abonne-toi ! « %s » gagne +1 en Punchline et récupère 2 de Viralité.', a->>'name'));
+    st := public._du_heal(st, s, ai, 2);
+  end if;
+  return public._du_resolve(public._du_live(st, s));
 end $$;
 
 -- Fin du tour : les cartes étourdies du camp qui vient de jouer récupèrent, puis l'autre camp joue
@@ -1493,18 +1561,22 @@ alter table public.album_claims enable row level security;
 drop policy if exists "lecture albums" on public.album_claims;
 create policy "lecture albums" on public.album_claims for select to authenticated using (owner = auth.uid());
 
+-- Albums de la génération 2 : clé préfixée par « 2: » (ex. « 2:yt », « 2:* »)
 create or replace function public._album_reward(p_type text) returns int language sql stable as $$
-  select case when p_type = '*' then 3000
-              else least(1500, greatest(150, 15 * (select count(*) from public.cards where type = p_type and active)))::int end $$;
+  select case when regexp_replace(p_type, '^2:', '') = '*' then 3000
+              else least(1500, greatest(150, 15 * (select count(*) from public.cards
+                     where type = regexp_replace(p_type, '^2:', '') and active and not draft
+                       and gen = case when p_type like '2:%' then 2 else 1 end)))::int end $$;
 
 create or replace function public.claim_album(p_type text) returns int
 language plpgsql security definer set search_path = public as $$
 declare u uuid := public._uid(); total int; missing int; rw int;
+        g int := case when p_type like '2:%' then 2 else 1 end; t text := regexp_replace(p_type, '^2:', '');
 begin
   perform 1 from profiles where id = u for update;
   if exists (select 1 from album_claims where owner = u and album = p_type) then raise exception 'Récompense déjà récupérée'; end if;
   select count(*), count(*) filter (where not exists (select 1 from card_instances ci where ci.owner = u and ci.card_id = c.id))
-    into total, missing from cards c where c.active and (p_type = '*' or c.type = p_type);
+    into total, missing from cards c where c.active and not c.draft and c.gen = g and (t = '*' or c.type = t);
   if total = 0 then raise exception 'Album introuvable'; end if;
   if missing > 0 then raise exception 'Il te manque encore % carte%', missing, case when missing > 1 then 's' else '' end; end if;
   rw := _album_reward(p_type);
@@ -1547,7 +1619,7 @@ begin
     'total', count(ci.id),
     'holos', count(ci.id) filter (where ci.holo),
     'legendaires', count(distinct ci.card_id) filter (where c.rarity = 'L'),
-    'album', (select count(*) from cards where active),
+    'album', (select count(*) from cards where active and not draft),
     'albums', (select count(*) from album_claims where owner = p_user),
     'since', pr.created_at)
     into r
@@ -1656,6 +1728,103 @@ begin
 end $voix$;
 
 -- ---------------------------------------------------------------------
+-- 12. Propositions de références par les joueurs (pour la génération 2)
+-- Le joueur choisit la plateforme d'origine (= le type de la carte) dès l'envoi.
+-- Un admin valide (la réf devient une carte en préparation de la Gén. 2) ou refuse.
+-- ---------------------------------------------------------------------
+create table if not exists public.suggestions (
+  id          bigserial primary key,
+  author      uuid not null references public.profiles(id) on delete cascade,
+  name        text not null,
+  platform    text not null references public.types(id),
+  details     text not null default '',
+  link        text,
+  status      text not null default 'pending' check (status in ('pending','accepted','refused')),
+  card_id     text references public.cards(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  reviewed_at timestamptz
+);
+create index if not exists suggestions_status on public.suggestions(status, created_at);
+alter table public.suggestions enable row level security;
+drop policy if exists "lecture propositions" on public.suggestions;
+create policy "lecture propositions" on public.suggestions for select to authenticated
+  using (author = auth.uid() or public.is_admin());
+
+create or replace function public.suggest_ref(p_name text, p_platform text, p_details text default '', p_link text default null) returns bigint
+language plpgsql security definer set search_path = public as $$
+declare u uuid := public._uid(); nm text := regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g');
+        lk text := nullif(trim(coalesce(p_link, '')), ''); nid bigint;
+begin
+  if u is null or not exists (select 1 from profiles where id = u) then raise exception 'Connecte-toi'; end if;
+  if char_length(nm) < 2 or char_length(nm) > 60 then raise exception 'Le nom de la réf doit faire entre 2 et 60 caractères'; end if;
+  if not exists (select 1 from types where id = p_platform) then raise exception 'Choisis la plateforme d''origine'; end if;
+  if char_length(coalesce(p_details, '')) > 500 then raise exception 'Explication trop longue (500 caractères maximum)'; end if;
+  if lk is not null and (lk !~* '^https?://' or char_length(lk) > 300) then raise exception 'Le lien doit commencer par http:// ou https://'; end if;
+  if exists (select 1 from cards where lower(name) = lower(nm)) then raise exception 'Cette réf est déjà dans le jeu'; end if;
+  if exists (select 1 from suggestions where lower(name) = lower(nm) and status in ('pending','accepted')) then raise exception 'Cette réf a déjà été proposée'; end if;
+  if (select count(*) from suggestions where author = u and status = 'pending') >= 15 then raise exception 'Tu as déjà 15 propositions en attente : patiente un peu'; end if;
+  if (select count(*) from suggestions where author = u and created_at > now() - interval '1 day') >= 20 then raise exception 'Doucement : 20 propositions par jour maximum'; end if;
+  insert into suggestions(author, name, platform, details, link) values (u, nm, p_platform, trim(coalesce(p_details, '')), lk) returning id into nid;
+  return nid;
+end $$;
+
+-- Le joueur retire une de ses propositions encore en attente
+create or replace function public.cancel_suggestion(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from suggestions where id = p_id and author = public._uid() and status = 'pending';
+  if not found then raise exception 'Proposition introuvable ou déjà traitée'; end if;
+end $$;
+
+-- Admin : valider une proposition = créer une carte en préparation dans la génération 2
+create or replace function public.accept_suggestion(p_id bigint) returns text
+language plpgsql security definer set search_path = public as $$
+declare sg suggestions; base text; cid text; k int := 1; fx text;
+begin
+  if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
+  select * into sg from suggestions where id = p_id for update;
+  if not found or sg.status <> 'pending' then raise exception 'Proposition introuvable ou déjà traitée'; end if;
+  base := left(trim(both '-' from regexp_replace(lower(translate(sg.name,
+            'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæÀÂÄÁÃÅÇÉÈÊËÍÌÎÏÑÓÒÔÖÕÚÙÛÜÝŸŒÆ', 'aaaaaaceeeeiiiinooooouuuuyyoaaaaaaaceeeeiiiinooooouuuuyyoa')), '[^a-z0-9]+', '-', 'g')), 36);
+  if base = '' then base := 'ref'; end if;
+  cid := base;
+  while exists (select 1 from cards where id = cid) loop k := k + 1; cid := base || '-' || k; end loop;
+  -- Compétence de départ : une des nouvelles compétences de la Gén. 2, selon le type (modifiable dans l'admin)
+  fx := (select arr[1 + mod(abs(hashtext(cid)), cardinality(arr))] from (select case sg.platform
+          when 'yt' then array['feat','live','abonne'] when 'tr' then array['cancel','badbuzz','feat']
+          when 'sn' then array['ghost','live','cancel'] when 'fi' then array['abonne','ghost','badbuzz']
+          when 'cu' then array['feat','live','ghost'] when 'foot' then array['abonne','feat','badbuzz']
+          when 'pol' then array['cancel','ghost','badbuzz'] when 'twitch' then array['live','abonne','feat']
+          when 'tele' then array['badbuzz','cancel','live'] when 'sport' then array['abonne','feat','ghost']
+          when 'tiktok' then array['live','ghost','badbuzz']
+          else array['feat','live','cancel','ghost','abonne','badbuzz'] end as arr) z);
+  insert into cards(id, n, name, type, rarity, p, d, v, fx, art, flavor, active, gen, draft, proposed_by)
+  values (cid, coalesce((select max(n) from cards), 0) + 1, sg.name, sg.platform, 'C', 2, 2, 3, fx, '💡',
+          left(sg.details, 180), false, 2, true, sg.author);
+  update suggestions set status = 'accepted', card_id = cid, reviewed_at = now() where id = p_id;
+  return cid;
+end $$;
+
+create or replace function public.refuse_suggestion(p_id bigint) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
+  update suggestions set status = 'refused', reviewed_at = now() where id = p_id and status = 'pending';
+  if not found then raise exception 'Proposition introuvable ou déjà traitée'; end if;
+end $$;
+
+-- Admin : publier des cartes en préparation (elles entrent dans les boosters de leur génération)
+create or replace function public.publish_cards(p_ids text[]) returns int
+language plpgsql security definer set search_path = public as $$
+declare n int;
+begin
+  if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
+  update cards set draft = false, active = true where id = any(p_ids) and draft;
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- ---------------------------------------------------------------------
 -- 10. Droits : seules les fonctions publiques sont appelables
 -- ---------------------------------------------------------------------
 do $droits$
@@ -1668,7 +1837,7 @@ begin
   end loop;
 end $droits$;
 
-revoke all on function public.create_profile(text), public.my_profile(), public.open_booster(boolean),
+revoke all on function public.create_profile(text), public.my_profile(), public.open_booster(boolean,int),
   public.discard_card(bigint), public.list_card(bigint,int), public.cancel_listing(bigint), public.buy_listing(bigint),
   public.propose_trade(uuid,bigint[],bigint[],int,int), public.respond_trade(bigint,boolean), public.cancel_trade(bigint),
   public.friend_request(text), public.friend_respond(bigint,boolean), public.friend_remove(uuid),
@@ -1677,9 +1846,11 @@ revoke all on function public.create_profile(text), public.my_profile(), public.
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack()
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack(),
+  public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
+  public.refuse_suggestion(bigint), public.publish_cards(text[])
   from public, anon;
-grant execute on function public.create_profile(text), public.my_profile(), public.open_booster(boolean),
+grant execute on function public.create_profile(text), public.my_profile(), public.open_booster(boolean,int),
   public.discard_card(bigint), public.list_card(bigint,int), public.cancel_listing(bigint), public.buy_listing(bigint),
   public.propose_trade(uuid,bigint[],bigint[],int,int), public.respond_trade(bigint,boolean), public.cancel_trade(bigint),
   public.friend_request(text), public.friend_respond(bigint,boolean), public.friend_remove(uuid),
@@ -1688,5 +1859,7 @@ grant execute on function public.create_profile(text), public.my_profile(), publ
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack()
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack(),
+  public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
+  public.refuse_suggestion(bigint), public.publish_cards(text[])
   to authenticated;

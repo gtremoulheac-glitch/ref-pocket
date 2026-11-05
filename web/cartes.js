@@ -39,7 +39,21 @@ const FX = {
   remontada:{name:"Remontada",    desc:"La première fois qu'elle tombe à 3 de Viralité ou moins, récupère 4 de Viralité.", remontada:true},
   landing:{name:"Débarquement",   desc:"À son entrée, inflige 2 dégâts à une carte adverse au hasard.", landing:2},
   buzz:{name:"Buzz",              desc:"Après chaque attaque, gagne +1 en Punchline.", buzz:true},
+  // Compétences de la génération 2
+  feat:{name:"Feat",              desc:"+1 dégât pour chaque autre carte alliée du même type sur le terrain.", feat:true, gen:2},
+  live:{name:"En direct",         desc:"Chaque fois que son camp attaque, récupère 1 de Viralité.", live:true, gen:2},
+  cancel:{name:"Cancel",          desc:"La première carte qu'elle touche et qui a une compétence la perd pour tout le duel.", cancel:true, gen:2},
+  ghost:{name:"Ghosting",         desc:"Une chance sur 3 d'esquiver complètement une attaque.", ghost:true, gen:2},
+  abonne:{name:"Abonne-toi",      desc:"Quand elle élimine sa cible, gagne +1 en Punchline et récupère 2 de Viralité.", abonne:true, gen:2},
+  badbuzz:{name:"Bad buzz",       desc:"À son entrée, inflige 1 dégât à toutes les cartes adverses.", badbuzz:1, gen:2},
 };
+// Génération 2 : chaque type pioche d'abord dans les nouvelles compétences
+const FX_POOLS2 = {
+  yt:["feat","live","abonne"], tr:["cancel","badbuzz","feat"], sn:["ghost","live","cancel"], fi:["abonne","ghost","badbuzz"],
+  cu:["feat","live","ghost"], foot:["abonne","feat","badbuzz"], pol:["cancel","ghost","badbuzz"], twitch:["live","abonne","feat"],
+  tele:["badbuzz","cancel","live"], sport:["abonne","feat","ghost"], tiktok:["live","ghost","badbuzz"]
+};
+const GEN_NAME = {1:"Génération 1", 2:"Génération 2"};
 // Effets proposés par type (utilisés pour donner un pouvoir aux cartes qui n'en ont pas)
 const FX_POOLS = {
   yt:["buzz", "hype", "doubletap", "crit", "lifesteal"],
@@ -55,11 +69,11 @@ const FX_POOLS = {
   tiktok:["buzz", "doubletap", "hype", "malaise", "crit"]
 };
 const FX_DEFAULT_POOL = ["crit", "lifesteal", "thorns", "rage", "shield", "hype", "lastword", "clash", "malaise", "expose", "doubletap", "remontada", "landing", "buzz"];
-function suggestFx(c){const p=FX_POOLS[c.type]||FX_DEFAULT_POOL;let h=0;for(const ch of String(c.id||c.name||""))h=(h*31+ch.charCodeAt(0))|0;return p[Math.abs(h)%p.length];}
+function suggestFx(c){const p=c.gen===2?(FX_POOLS2[c.type]||["feat","live","cancel","ghost","abonne","badbuzz"]):(FX_POOLS[c.type]||FX_DEFAULT_POOL);let h=0;for(const ch of String(c.id||c.name||""))h=(h*31+ch.charCodeAt(0))|0;return p[Math.abs(h)%p.length];}
 // Total de stats conseillé par rareté (Punchline + Aura + Viralité)
 const STAT_RANGE = {C:[6,8], R:[9,11], E:[12,14], L:[15,17]};
 // Ligne de la table "cards" -> objet carte utilisé partout dans l'appli
-function cardFromRow(x){return {id:x.id,n:x.n,name:x.name,type:x.type,r:x.rarity,p:x.p,d:x.d,v:x.v,fx:x.fx&&FX[x.fx]?x.fx:null,art:x.art||"❔",fl:x.flavor||"",active:x.active!==false,image:x.image||null,audio:x.audio||null,video:x.video||null};}
+function cardFromRow(x){return {id:x.id,n:x.n,name:x.name,type:x.type,r:x.rarity,p:x.p,d:x.d,v:x.v,fx:x.fx&&FX[x.fx]?x.fx:null,art:x.art||"❔",fl:x.flavor||"",active:x.active!==false,image:x.image||null,audio:x.audio||null,video:x.video||null,gen:x.gen===2?2:1,draft:!!x.draft,by:x.proposed_by||null};}
 // Niveaux (fusion des doubles), notés ✦ : chaque type a sa propre progression (5 lettres p/d/v, une par niveau)
 const LVL_MAX = 5;
 const STAT_NAME = {p:"Punchline", d:"Aura", v:"Viralité"}, STAT_ABBR = {p:"PUN", d:"AUR", v:"VIR"};
@@ -69,8 +83,9 @@ function lvlGain(l,type){return l>=1&&l<=LVL_MAX?`+1 ${STAT_NAME[lvlSeq(type)[l-
 function lvlCost(l){return l;} // doubles à fusionner pour atteindre le niveau l
 function boosted(c,l){if(!c||!l) return c;const b=lvlBonus(l,c.type);return {...c,p:c.p+b.p,d:c.d+b.d,v:c.v+b.v,lvl:l,bonus:b};}
 // Numéro affiché : rang parmi les cartes actives (pas de trou après une suppression ou un retrait)
-function numberCards(list){list.filter(c=>c.active).sort((a,b)=>a.n-b.n).forEach((c,i)=>c.no=i+1);list.filter(c=>!c.active).forEach(c=>c.no=null);}
-function cardNo(c){return c.no===undefined?String(c.n).padStart(3,"0"):c.no?String(c.no).padStart(3,"0"):"HS";}
+// Numéros affichés : chaque génération est numérotée à part (001, 002…), les cartes retirées ou en préparation n'ont pas de numéro
+function numberCards(list){for(const g of [1,2]) list.filter(c=>c.active&&!c.draft&&(c.gen||1)===g).sort((a,b)=>a.n-b.n).forEach((c,i)=>c.no=i+1);list.filter(c=>!c.active||c.draft).forEach(c=>c.no=null);}
+function cardNo(c){return (c.gen===2?"G2·":"")+(c.no===undefined?String(c.n).padStart(3,"0"):c.no?String(c.no).padStart(3,"0"):c.draft?"PRÉP":"HS");}
 function ovr(c){return Math.min(99,50+(c.p+c.d+c.v)*3);}
 function abbr(t){const x=TYPES[t];return x?(x.abbr||x.name.slice(0,4).toUpperCase()):String(t).slice(0,4).toUpperCase();}
 function typeOf(t){return TYPES[t]||{name:t,abbr:String(t).slice(0,4).toUpperCase(),color:"#8d84a3",bat:[]};}
@@ -78,7 +93,7 @@ function yearOf(c){const m=(c.fl||"").match(/Années \d{4}|\b(19|20)\d{2}\b/);re
 function cardHTML(c,opt={}){
   if(!c) return "";
   if(opt.unknown) return `<div class="card unknown" style="--tc:${esc(typeOf(c.type).color)}"><div class="cf"><div class="ctz"><div class="chead"><span class="ovr">?</span><span class="ctyp">${esc(abbr(c.type))}</span></div><div class="art">?</div></div>
-    <div class="cname">???</div><div class="stats"><span><i>PUN</i>–</span><span><i>AUR</i>–</span><span><i>VIR</i>–</span></div><div class="cfoot"><span>${cardNo(c)}/${albumSize()}</span></div></div></div>`;
+    <div class="cname">???</div><div class="stats"><span><i>PUN</i>–</span><span><i>AUR</i>–</span><span><i>VIR</i>–</span></div><div class="cfoot"><span>${cardNo(c)}/${albumSize(c.gen||1)}</span></div></div></div>`;
   const f=c.fx?FX[c.fx]:null;
   return `<div class="card r-${c.r}${opt.holo?" holo":""}${c.image?" hasimg":""}" style="--tc:${esc(typeOf(c.type).color)}">
     <div class="cf">
@@ -88,7 +103,7 @@ function cardHTML(c,opt={}){
       </div>
       <div class="cname${c.name.length>52?" xlong":c.name.length>36?" long":""}">${esc(c.name)}</div>
       <div class="stats"><span title="Punchline"${c.bonus?.p?' class="up"':""}><i>PUN</i>${c.p}</span><span title="Aura"${c.bonus?.d?' class="up"':""}><i>AUR</i>${c.d}</span><span title="Viralité"${c.bonus?.v?' class="up"':""}><i>VIR</i>${c.v}</span></div>
-      <div class="cfoot"><span>${cardNo(c)}/${albumSize()}</span>${f?`<span class="fxn">${esc(f.name)}</span>`:""}</div>
+      <div class="cfoot"><span>${cardNo(c)}/${albumSize(c.gen||1)}</span>${f?`<span class="fxn">${esc(f.name)}</span>`:""}</div>
     </div>
     ${opt.holo?'<span class="holotag">HOLO</span>':""}
     ${opt.count>1?`<span class="count">×${opt.count}</span>`:""}

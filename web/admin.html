@@ -255,7 +255,10 @@ input[type=number],select{background:var(--ink);border:1px solid var(--line);col
 /* Marché */
 .seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px}
 .seg button{border:0;background:none;padding:8px 14px;border-radius:9px;font-weight:700;color:var(--muted)}
-.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--fg)}
+.seg button[aria-pressed="true"],.seg button[aria-checked="true"]:not(.r-C):not(.r-R):not(.r-E):not(.r-L){background:var(--panel-2);color:var(--fg)}
+.tipbox{background:color-mix(in srgb,var(--foil) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--foil) 40%,transparent);border-radius:12px;padding:10px 12px;font-size:14px;margin:0}
+details.hist summary{cursor:pointer;font-weight:700;color:var(--muted)}
+details.hist[open] summary{margin-bottom:8px}
 .offers{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
 .offer{display:grid;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}
 .offer .meta{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
@@ -395,6 +398,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .savebar{position:sticky;bottom:0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--ink) 70%,transparent)}
 .lvsel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.lvsel label{display:grid;gap:3px;font-size:12px;color:var(--muted);text-align:center}.lvsel select{padding:6px 2px;font-size:13px}
 .typelist{display:grid;gap:6px;max-height:34vh;overflow-y:auto}
+.gfs{flex-wrap:wrap;justify-self:start}
+.gfs .cnt{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:99px;background:#ff3b6b;color:#fff;font-size:11px;padding:0 5px;margin-left:4px}
+.adminwrap .grid .tile{display:grid;gap:6px}
+.sugs{display:grid;gap:10px}
+.sug{display:grid;gap:6px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--tc);border-radius:12px;padding:12px 14px}
+.sug p{margin:0}
+.sug .plat{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;white-space:nowrap}
+.sug .plat .dot{width:9px;height:9px;border-radius:50%}
+.sug a{word-break:break-all}
 .typerow{display:flex;gap:10px;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;text-align:left}
 .typerow.on{border-color:var(--accent)}
 .typerow .dot,.chip .dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none}
@@ -447,10 +459,12 @@ const configured = !!(CFG.supabaseUrl && CFG.supabaseAnonKey && !/TON-PROJET|COL
 const sb = configured && window.supabase ? window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey, CFG.clientOptions || {}) : null;
 const $ = s=>document.querySelector(s);
 let TYPES = {}, TYPE_ROWS = [], MATCH_ROWS = [], CARDS = [];
-function albumSize(){return Math.max(1,CARDS.filter(c=>c.active).length);}
+function albumSize(g){g=g||1;return Math.max(1,CARDS.filter(c=>c.active&&!c.draft&&(c.gen||1)===g).length);}
 const IMG_W = 640, IMG_H = 476; // zone image d'une carte (même proportion que sur la carte)
 const BUCKET = "cartes";
 let view = "list", q = "", tf = "all", rf = "all", sf = false, ED = null, ME = null;
+// gf : quelle partie du catalogue on regarde ("1", "2" = génération publiée, "prep" = en préparation, "sug" = propositions des joueurs)
+let gf = "1", SUGS = [], PSEUDO = {};
 
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;$("#toasts").appendChild(t);setTimeout(()=>t.remove(),3600);}
 function errMsg(e){const m=e?.message||String(e);if(/Failed to fetch|NetworkError|Load failed/i.test(m))return "Connexion au serveur impossible.";if(/row-level security/i.test(m))return "Refusé : ton compte n'a pas les droits d'administration.";if(/duplicate key/i.test(m))return "Cet identifiant existe déjà.";return m;}
@@ -463,7 +477,13 @@ async function load(){
   TYPES={}; for(const x of t.data) TYPES[x.id]={name:x.name,abbr:x.abbr,color:x.color,lvl:x.lvl,bat:[]};
   for(const x of m.data) if(Number(x.mult)>1&&TYPES[x.attacker]) TYPES[x.attacker].bat.push(x.defender);
   CARDS=c.data.map(cardFromRow); numberCards(CARDS);
+  await loadSugs();
 }
+async function loadSugs(){
+  const [r,p]=await Promise.all([sb.from("suggestions").select("*").order("created_at",{ascending:false}).limit(300),sb.from("profiles").select("id,pseudo")]);
+  SUGS=r.error?[]:r.data; PSEUDO=p.error?{}:Object.fromEntries(p.data.map(x=>[x.id,x.pseudo]));
+}
+function genMissing(g){return ["C","R","E","L"].filter(r=>!CARDS.some(c=>c.gen===g&&c.r===r&&c.active&&!c.draft));}
 function message(title,text,link){
   $("#view").innerHTML=`<div class="auth"><h1>${esc(title)}</h1><p class="sub">${text}</p>${link||""}</div>`;
 }
@@ -478,36 +498,107 @@ function mediaBadges(c){
 }
 function renderList(){
   view="list";
-  const list=CARDS.filter(c=>(tf==="all"||c.type===tf)&&(rf==="all"||c.r===rf)&&(!q||c.name.toLowerCase().includes(q.toLowerCase())||String(c.n)===q)&&(!sf||!c.audio));
+  if(gf==="sug") return renderSugs();
+  const inGf=c=>gf==="prep"?c.draft:(!c.draft&&(c.gen||1)===+gf);
+  const list=CARDS.filter(c=>inGf(c)&&(tf==="all"||c.type===tf)&&(rf==="all"||c.r===rf)&&(!q||c.name.toLowerCase().includes(q.toLowerCase())||String(c.n)===q)&&(!sf||!c.audio));
   const groups=["L","E","R","C"].map(r=>{const g=list.filter(c=>c.r===r).sort((a,b)=>a.n-b.n);
     return g.length?`<section class="rgroup"><h2 class="rhead r-${r}"><span>${RARITIES[r].pip} ${RARITIES[r].name}s</span><span class="note">${g.length}</span></h2>
-      <div class="grid">${g.map(c=>`<button data-edit="${esc(c.id)}" class="${c.active?"":"off"}" aria-label="Modifier ${esc(c.name)}${c.audio?", avec son":", sans son"}">${mediaBadges(c)}${cardHTML(c)}<span class="cap">${c.active?"":"Retirée · "}${c.image?"Image":"Emoji"}</span></button>`).join("")}</div></section>`:"";}).join("");
-  const nAct=CARDS.filter(c=>c.active).length;
+      <div class="grid">${g.map(c=>`<div class="tile"><button data-edit="${esc(c.id)}" class="${c.active||c.draft?"":"off"}" aria-label="Modifier ${esc(c.name)}${c.audio?", avec son":", sans son"}">${mediaBadges(c)}${cardHTML(c)}<span class="cap">${c.draft?"📝 En préparation · ":c.active?"":"Retirée · "}${c.image?"Image":"Emoji"}</span></button>${c.draft?`<button class="btn small foil" data-publish="${esc(c.id)}">Publier</button>`:""}</div>`).join("")}</div></section>`:"";}).join("");
+  const inView=CARDS.filter(inGf), nAct=inView.filter(c=>c.active).length, nPrep=CARDS.filter(c=>c.draft).length, nSug=SUGS.filter(x=>x.status==="pending").length;
+  const miss=genMissing(2).map(r=>RARITIES[r].name.toLowerCase());
+  const gfs=`<div class="seg gfs" role="tablist" aria-label="Collection">
+      <button data-gf="1" aria-pressed="${gf==="1"}">Génération 1 <span class="note">${CARDS.filter(c=>!c.draft&&c.gen===1).length}</span></button>
+      <button data-gf="2" aria-pressed="${gf==="2"}">Génération 2 <span class="note">${CARDS.filter(c=>!c.draft&&c.gen===2).length}</span></button>
+      <button data-gf="prep" aria-pressed="${gf==="prep"}">📝 Préparation <span class="note">${nPrep}</span></button>
+      <button data-gf="sug" aria-pressed="${gf==="sug"}">💡 Propositions${nSug?` <span class="cnt">${nSug}</span>`:""}</button></div>`;
+  const head=gf==="prep"
+    ?`<div style="display:grid;gap:6px"><p class="eyebrow">En préparation</p><h1>${nPrep} carte${nPrep>1?"s":""}</h1><p class="note">Invisibles pour les joueurs. Elles n'entrent dans les boosters que quand tu les publies.</p></div>`
+    :`<div style="display:grid;gap:6px"><p class="eyebrow">Génération ${gf}</p><h1>${inView.length} cartes</h1><p class="note">${nAct} dans les boosters · ${inView.length-nAct} retirée${inView.length-nAct>1?"s":""}</p></div>`;
+  const prepTools=gf==="prep"?`<form class="edsec" id="ideaform" novalidate>
+      <h2>Ajouter une idée</h2>
+      <p class="note">Note une réf en deux secondes : elle part en préparation dans la Génération 2. Tu compléteras l'image, la rareté et les stats plus tard.</p>
+      <div class="two"><div class="field"><label for="i-name">Nom de la réf</label><input type="text" id="i-name" maxlength="70" autocomplete="off"></div>
+        <div class="field"><label for="i-type">Plateforme / type</label><select id="i-type">${TYPE_ROWS.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join("")}</select></div></div>
+      <div class="field"><label for="i-note">Note (devient le texte d'ambiance)</label><textarea id="i-note" rows="2" maxlength="180"></textarea></div>
+      <div class="row"><button type="submit" class="btn">Ajouter en préparation</button><span class="note" id="i-msg" role="status"></span></div></form>
+    ${nPrep?`<div class="row" style="justify-content:space-between"><p class="note">${miss.length?`Les boosters Génération 2 s'ouvriront aux joueurs dès qu'il y aura au moins une carte publiée de chaque rareté (il manque : ${miss.join(", ")}).`:"Les boosters Génération 2 sont ouverts aux joueurs."}</p><button class="btn foil" data-publishall="1">Tout publier (${nPrep})</button></div>`:""}`:
+    gf==="2"&&miss.length?`<p class="tipbox">Les boosters Génération 2 ne sont pas encore ouverts aux joueurs : il faut au moins une carte publiée de chaque rareté (il manque : ${miss.join(", ")}).</p>`:"";
   $("#view").innerHTML=`<div style="display:grid;gap:16px">
+    ${gfs}
     <div class="row" style="justify-content:space-between;align-items:flex-end">
-      <div style="display:grid;gap:6px"><p class="eyebrow">Catalogue</p><h1>${CARDS.length} cartes</h1><p class="note">${nAct} dans les boosters · ${CARDS.length-nAct} retirée${CARDS.length-nAct>1?"s":""}</p></div>
+      ${head}
       <div class="row"><button class="btn ghost" data-a="tests">🧪 Tests</button><button class="btn ghost" data-a="drops">🎲 Taux des boosters</button><button class="btn ghost" data-a="players">Joueurs</button><button class="btn ghost" data-a="admins">Admins</button><button class="btn ghost" data-a="types">Types (${TYPE_ROWS.length})</button><button class="btn foil" data-a="new">Nouvelle carte</button></div>
     </div>
+    ${prepTools}
     <p class="note dzhint">Astuce : glisse une image sur une carte pour changer son image, ou dans le vide pour créer une nouvelle carte.</p>
     <div class="field"><label for="q">Rechercher</label><input type="text" id="q" value="${esc(q)}" placeholder="Nom ou numéro"></div>
     <div class="row">
       <button class="chip" data-rf="all" aria-pressed="${rf==="all"}">Toutes les raretés</button>
-      ${["L","E","R","C"].map(r=>`<button class="chip" data-rf="${r}" aria-pressed="${rf===r}"><span class="rpip r-${r}">${RARITIES[r].pip}</span>${RARITIES[r].name}s (${CARDS.filter(c=>c.r===r).length})</button>`).join("")}
+      ${["L","E","R","C"].map(r=>`<button class="chip" data-rf="${r}" aria-pressed="${rf===r}"><span class="rpip r-${r}">${RARITIES[r].pip}</span>${RARITIES[r].name}s (${inView.filter(c=>c.r===r).length})</button>`).join("")}
     </div>
     <div class="row">
       <button class="chip" data-tf="all" aria-pressed="${tf==="all"}">Tous les types</button>
-      <button class="chip" data-sf="1" aria-pressed="${sf}">🔇 Sans son (${CARDS.filter(c=>!c.audio).length})</button>
+      <button class="chip" data-sf="1" aria-pressed="${sf}">🔇 Sans son (${inView.filter(c=>!c.audio).length})</button>
       ${TYPE_ROWS.map(t=>`<button class="chip" data-tf="${esc(t.id)}" aria-pressed="${tf===t.id}"><span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}</button>`).join("")}
     </div>
-    ${list.length?groups:`<div class="empty-state">Aucune carte ne correspond.</div>`}
+    ${list.length?groups:`<div class="empty-state">${gf==="prep"?"Rien en préparation. Ajoute une idée ci-dessus ou valide une proposition des joueurs.":"Aucune carte ne correspond."}</div>`}
   </div>`;
+  const idf=$("#ideaform"); if(idf) idf.onsubmit=async e=>{e.preventDefault();const name=$("#i-name").value.trim(),m=$("#i-msg");
+    if(name.length<2){m.textContent="Donne un nom.";return;}
+    const base=slug(name)||"ref";let id=base,k=1;while(CARDS.some(c=>c.id===id)){k++;id=base+"-"+k;}
+    const type=$("#i-type").value, n=CARDS.reduce((x,c)=>Math.max(x,c.n),0)+1;
+    m.textContent="…";
+    const r=await sb.from("cards").insert({id,n,name,type,rarity:"C",p:2,d:2,v:3,fx:suggestFx({type,id,gen:2}),art:"💡",flavor:$("#i-note").value.trim(),active:false,gen:2,draft:true}).select();
+    if(r.error||!r.data?.length){m.textContent=errMsg(r.error||"Refusé");return;}
+    await load();renderList();toast(`« ${name} » ajoutée en préparation`);};
   const qi=$("#q"); qi.oninput=()=>{q=qi.value;const pos=qi.selectionStart;renderList();const n=$("#q");n.focus();n.setSelectionRange(pos,pos);};
+}
+
+/* ---------- Propositions des joueurs ---------- */
+function renderSugs(){
+  const pend=SUGS.filter(x=>x.status==="pending"), done=SUGS.filter(x=>x.status!=="pending").slice(0,60);
+  const nPrep=CARDS.filter(c=>c.draft).length;
+  const row=x=>{const t=TYPES[x.platform]||{name:x.platform,color:"#888"};
+    return `<article class="sug" style="--tc:${esc(t.color)}">
+      <div class="row" style="justify-content:space-between;gap:8px"><b>${esc(x.name)}</b><span class="plat"><span class="dot" style="background:${esc(t.color)}"></span>${esc(t.name)}</span></div>
+      ${x.details?`<p>${esc(x.details)}</p>`:""}
+      ${x.link?`<a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer nofollow" class="note">${esc(x.link)}</a>`:""}
+      <p class="note">Proposée par <b>${esc(PSEUDO[x.author]||"?")}</b> · ${new Date(x.created_at).toLocaleDateString("fr-FR")}${x.status==="accepted"?" · ✓ validée":x.status==="refused"?" · refusée":""}</p>
+      ${x.status==="pending"?`<div class="row"><button class="btn small foil" data-sgok="${x.id}">Valider → préparation Gén. 2</button><button class="btn small ghost" data-sgno="${x.id}">Refuser</button></div>`:x.card_id&&CARDS.some(c=>c.id===x.card_id)?`<div class="row"><button class="btn small ghost" data-edit="${esc(x.card_id)}">Voir la carte</button></div>`:""}
+    </article>`;};
+  $("#view").innerHTML=`<div style="display:grid;gap:16px">
+    <div class="seg gfs" role="tablist" aria-label="Collection">
+      <button data-gf="1">Génération 1</button><button data-gf="2">Génération 2</button>
+      <button data-gf="prep">📝 Préparation <span class="note">${nPrep}</span></button>
+      <button data-gf="sug" aria-pressed="true">💡 Propositions${pend.length?` <span class="cnt">${pend.length}</span>`:""}</button></div>
+    <div style="display:grid;gap:6px"><p class="eyebrow">Propositions des joueurs</p><h1>${pend.length} en attente</h1>
+      <p class="note">La plateforme choisie par le joueur devient le type de la carte. Valider crée la carte en préparation dans la Génération 2 (rareté, stats et image à compléter), rien n'est visible pour les joueurs avant que tu la publies.</p></div>
+    ${pend.length?`<div class="sugs">${pend.map(row).join("")}</div>`:'<div class="empty-state">Aucune proposition en attente.</div>'}
+    ${done.length?`<details class="hist"><summary>Déjà traitées (${done.length})</summary><div class="sugs">${done.map(row).join("")}</div></details>`:""}
+  </div>`;
+}
+async function reviewSug(b,ok){
+  b.disabled=true;
+  const id=+(ok?b.dataset.sgok:b.dataset.sgno);
+  const r=await sb.rpc(ok?"accept_suggestion":"refuse_suggestion",{p_id:id});
+  if(r.error){toast(errMsg(r.error));b.disabled=false;return;}
+  await load();
+  if(ok){toast("Validée : la carte est en préparation. Complète-la puis publie-la.");gf="prep";openEditor(r.data);}
+  else{toast("Proposition refusée");renderList();}
+}
+async function publishCards(ids,label){
+  const r=await sb.rpc("publish_cards",{p_ids:ids});
+  if(r.error){toast(errMsg(r.error));return false;}
+  await load();
+  toast(r.data?`${label} : ${r.data} carte${r.data>1?"s":""} publiée${r.data>1?"s":""}, elle${r.data>1?"s sont":" est"} maintenant dans les boosters`:"Rien à publier");
+  return true;
 }
 
 /* ---------- Éditeur ---------- */
 function blankCard(){
   const n=CARDS.reduce((m,c)=>Math.max(m,c.n),0)+1;
-  return {id:"",n,name:"",type:TYPE_ROWS[0]?.id||"",r:"C",p:2,d:2,v:3,fx:suggestFx({type:TYPE_ROWS[0]?.id,id:String(Date.now())}),art:"⭐",fl:"",active:true,image:null};
+  const g2=gf==="2"||gf==="prep";
+  return {id:"",n,name:"",type:TYPE_ROWS[0]?.id||"",r:"C",p:2,d:2,v:3,fx:suggestFx({type:TYPE_ROWS[0]?.id,id:String(Date.now()),gen:g2?2:1}),art:"⭐",fl:"",active:!g2,image:null,gen:g2?2:1,draft:g2};
 }
 function openEditor(id){
   const c=id?{...CARDS.find(x=>x.id===id)}:blankCard();
@@ -597,11 +688,18 @@ function renderEditor(){
             <div class="field"><label for="f-v">Viralité</label><input type="number" id="f-v" min="1" max="15" step="1" value="${c.v}"></div>
           </div>
           <p class="note" id="stattotal"></p>
-          <div class="field"><label for="f-fx">Effet spécial</label><select id="f-fx"><option value="">Aucun</option>${Object.entries(FX).map(([k,f])=>`<option value="${k}" ${c.fx===k?"selected":""}>${esc(f.name)}</option>`).join("")}</select><span class="note" id="fxdesc"></span></div>
+          <div class="field"><label for="f-fx">Effet spécial</label><select id="f-fx"><option value="">Aucun</option>
+            <optgroup label="Nouvelles compétences · Génération 2">${Object.entries(FX).filter(([k,f])=>f.gen===2).map(([k,f])=>`<option value="${k}" ${c.fx===k?"selected":""}>${esc(f.name)}</option>`).join("")}</optgroup>
+            <optgroup label="Compétences classiques">${Object.entries(FX).filter(([k,f])=>f.gen!==2).map(([k,f])=>`<option value="${k}" ${c.fx===k?"selected":""}>${esc(f.name)}</option>`).join("")}</optgroup></select><span class="note" id="fxdesc"></span></div>
         </section>
         <section class="edsec">
-          <label class="check"><input type="checkbox" id="f-active" ${c.active?"checked":""}> Peut sortir dans les boosters</label>
-          <p class="note">Décoche pour retirer la carte des boosters. Les joueurs qui l'ont déjà la gardent.</p>
+          <h2>Collection</h2>
+          <div class="field"><span class="lbl">Génération</span><div class="seg" role="radiogroup" aria-label="Génération">${[1,2].map(g=>`<button type="button" role="radio" data-gen="${g}" aria-checked="${(c.gen||1)===g}">Génération ${g}</button>`).join("")}</div></div>
+          ${c.draft?`<p class="tipbox">📝 <b>En préparation</b> : la carte est invisible pour les joueurs et ne sort pas des boosters. Enregistre autant que tu veux, puis publie-la quand elle est prête.</p>
+            <div class="row"><button type="button" class="btn foil" data-a="publishnow">Enregistrer et publier</button></div>`
+          :`<label class="check"><input type="checkbox" id="f-active" ${c.active?"checked":""}> Peut sortir dans les boosters</label>
+          <p class="note">Décoche pour retirer la carte des boosters. Les joueurs qui l'ont déjà la gardent.</p>`}
+          ${c.by?`<p class="note">💡 Réf proposée par <b>${esc(PSEUDO[c.by]||"un joueur")}</b> (son pseudo s'affiche sur la carte en grand).</p>`:""}
         </section>
         ${ED.isNew?"":`<section class="edsec danger">
           <h2>Supprimer la carte</h2>
@@ -743,6 +841,7 @@ function bindEditor(){
   f.onsubmit=e=>{e.preventDefault();saveCard();};
   $("#f-id").onblur=()=>{$("#f-id").value=c.id;};
   $("#pvholo").onchange=()=>{ED.holo=$("#pvholo").checked;renderPreview();};
+  f.querySelectorAll("[data-gen]").forEach(b=>b.onclick=()=>{c.gen=+b.dataset.gen;ED.dirty=true;f.querySelectorAll("[data-gen]").forEach(x=>x.setAttribute("aria-checked",x===b));renderPreview();});
   f.querySelectorAll("[data-r]").forEach(b=>b.onclick=()=>{const was=c.r;c.r=b.dataset.r;ED.dirty=true;f.querySelectorAll("[data-r]").forEach(x=>x.setAttribute("aria-checked",x===b));renderPreview();if((was==="L")!==(c.r==="L"))renderEditorKeep();});
   bindFramer();
 }
@@ -951,13 +1050,14 @@ async function saveCard(){
       if(up.error) throw up.error;
       video=sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
     }
-    const row={id:c.id,n:c.n,name:c.name.trim(),type:c.type,rarity:c.r,p:c.p,d:c.d,v:c.v,fx:c.fx||null,art:c.art||"❔",flavor:c.fl.trim(),active:c.active,image:image||null,audio,video};
+    const row={id:c.id,n:c.n,name:c.name.trim(),type:c.type,rarity:c.r,p:c.p,d:c.d,v:c.v,fx:c.fx||null,art:c.art||"❔",flavor:c.fl.trim(),active:c.draft?false:c.active,image:image||null,audio,video,gen:c.gen||1,draft:!!c.draft};
     const r=ED.isNew?await sb.from("cards").insert(row).select():await sb.from("cards").update(row).eq("id",c.id).select();
     if(r.error) throw r.error;
     if(!r.data||!r.data.length) throw new Error("Refusé : ton compte n'a pas les droits d'administration.");
     if(oldImage&&oldImage!==image){const p=storagePath(oldImage);if(p) sb.storage.from(BUCKET).remove([p]).catch(()=>{});}
     if(oldAudio&&oldAudio!==audio){const p=storagePath(oldAudio);if(p) sb.storage.from(BUCKET).remove([p]).catch(()=>{});}
     if(oldVideo&&oldVideo!==video){const p=storagePath(oldVideo);if(p) sb.storage.from(BUCKET).remove([p]).catch(()=>{});}
+    if(ED.publish){ED.publish=false;if(await publishCards([c.id],`« ${row.name} »`)){openEditor(c.id);return;}}
     await load();
     toast(ED.isNew?`« ${row.name} » créée`:`« ${row.name} » enregistrée`);
     openEditor(c.id);
@@ -1090,6 +1190,14 @@ document.addEventListener("click",e=>{
     ED=null;renderList();scrollTo(0,0);return;
   }
   if(b.dataset.edit) return openEditor(b.dataset.edit);
+  if(b.dataset.gf){gf=b.dataset.gf;tf="all";rf="all";q="";renderList();scrollTo(0,0);return;}
+  if(b.dataset.sgok) return reviewSug(b,true);
+  if(b.dataset.sgno) return reviewSug(b,false);
+  if(b.dataset.publish){const c=CARDS.find(x=>x.id===b.dataset.publish);if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmer";return;}
+    b.disabled=true;return publishCards([b.dataset.publish],`« ${c?.name||""} »`).then(()=>renderList());}
+  if(b.dataset.publishall){const ids=CARDS.filter(x=>x.draft).map(x=>x.id);if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent=`Confirmer : publier ${ids.length} carte${ids.length>1?"s":""}`;return;}
+    b.disabled=true;return publishCards(ids,"Génération 2").then(()=>renderList());}
+  if(a==="publishnow"){ED.publish=true;return saveCard();}
   if(b.dataset.tf){tf=b.dataset.tf;return renderList();}
   if(b.dataset.sf){sf=!sf;return renderList();}
   if(b.dataset.rf){rf=b.dataset.rf;return renderList();}
