@@ -116,7 +116,6 @@ html.noscroll,html.noscroll body{overflow:hidden;overscroll-behavior:none}
 html.noscroll main{height:calc(100dvh - var(--hh,64px) - var(--nh,80px));padding-block:10px 12px;overflow:hidden}
 html.noscroll .hero{height:100%;grid-template-rows:minmax(0,1fr) auto;gap:clamp(8px,2dvh,18px);padding:0;align-items:stretch}
 html.noscroll .hero .pack{height:100%;width:auto;max-height:400px;max-width:72vw;min-height:0;align-self:center}
-html.noscroll .hero>div{gap:clamp(6px,1.4dvh,14px)!important}
 html.noscroll .hero h1{font-size:clamp(22px,4dvh,34px)}
 @media (max-height:600px){html.noscroll .hero .sub{display:none}}
 /* Le texte du paquet suit la taille du paquet (petits écrans : le paquet rétrécit) */
@@ -124,7 +123,19 @@ html.noscroll .hero h1{font-size:clamp(22px,4dvh,34px)}
 button.pack .pt{font-size:clamp(16px,19cqw,38px)}
 button.pack .ps{font-size:clamp(9px,6cqw,13px)}
 .pack .pgen{font-size:clamp(10px,7cqw,15px)}
-@media (max-height:720px){html.noscroll .hero .sub{display:none}html.noscroll .sugbar{padding:6px 10px;font-size:13px}html.noscroll .hero h1{font-size:clamp(20px,3.6dvh,30px)}}
+/* Bas de la page booster : compact pour laisser la place au paquet */
+.bctl{display:grid;gap:12px;min-width:0;justify-items:center;width:100%;max-width:420px}
+.btitle{display:grid;gap:2px}
+.btitle .sub{font-size:14px;margin:0}
+.bopen{width:100%;max-width:320px}
+.bbuy{gap:8px;flex-wrap:nowrap}
+.bbuy .btn{white-space:nowrap}
+.bfoot{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:nowrap;white-space:nowrap}
+.bfoot .sugbar{padding:5px 10px;font-size:13px;border-radius:99px}
+html.noscroll .bctl{gap:clamp(6px,1.2dvh,12px)}
+html.noscroll .hero h1{font-size:clamp(20px,3.2dvh,28px)}
+html.noscroll .gensel button{padding:6px 10px;font-size:13px}
+@media (max-height:760px){html.noscroll .hero .sub{display:none}}
 .pack{position:relative;width:min(220px,58vw);animation:bob 3.2s ease-in-out infinite;aspect-ratio:5/8;margin:0 auto;border-radius:18px;border:0;padding:0;
   background:linear-gradient(135deg,#ffe46b 0%,#ffb13b 25%,#ff6fbf 50%,#8f6bff 75%,#46e0ff 100%);box-shadow:0 20px 50px -18px rgba(255,180,60,.55),inset 0 0 0 3px rgba(255,255,255,.35);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#1a1030;overflow:hidden;transition:transform .2s}
@@ -1674,17 +1685,17 @@ function viewBoosters(){
       <button role="radio" data-bgen="2" aria-pressed="${g===2}" aria-checked="${g===2}" ${r2?"":"disabled"}>Génération 2${r2?'<span class="newtag">NOUVEAU</span>':" · bientôt"}</button></div>`;
   return `<div class="hero">
     <button class="pack${g===2?" g2":""}" data-act="open" ${b<1?"disabled":""} aria-label="Ouvrir un booster gratuit de la génération ${g}"><span class="pt">REF<br>POCKET</span>${g===2?'<span class="pgen">GÉN. 2</span>':""}<span class="ps">4 cartes</span></button>
-    <div style="display:grid;gap:14px;min-width:0">
+    <div class="bctl">
       ${gensel}
-      <h1>${b>0?`${b} booster${b>1?"s":""} à ouvrir`:"Plus de booster pour l'instant"}</h1>
-      <p class="sub">${b<MAX_STOCK?`Prochain booster gratuit dans ${dur(nextBoosterMs())}.`:"Ta réserve est pleine, ouvre-les !"}</p>
-      <div class="row">
-        <button class="btn foil" data-act="open" ${b<1?"disabled":""}>Ouvrir un booster</button>
-        <button class="btn ghost" data-act="buyopen" ${S.me.kheys<BOOSTER_PRICE?"disabled":""}>Acheter · ${BOOSTER_PRICE} K</button>
-        <button class="btn ghost" data-act="buypack" ${S.me.kheys<PACK_PRICE?"disabled":""}>Pack de 10 · ${PACK_PRICE} K</button>
+      <div class="btitle"><h1>${b>0?`${b} booster${b>1?"s":""} à ouvrir`:"Plus de booster pour l'instant"}</h1>
+      <p class="sub">${b<MAX_STOCK?`Prochain booster gratuit dans ${dur(nextBoosterMs())}.`:"Ta réserve est pleine, ouvre-les !"}</p></div>
+      <button class="btn foil bopen" data-act="open" ${b<1?"disabled":""}>Ouvrir un booster</button>
+      <div class="row bbuy">
+        <button class="btn ghost small" data-act="buyopen" ${S.me.kheys<BOOSTER_PRICE?"disabled":""}>Acheter 1 · ${BOOSTER_PRICE} K</button>
+        <button class="btn ghost small" data-act="buypack" ${S.me.kheys<PACK_PRICE?"disabled":""}>Pack de 10 · ${PACK_PRICE} K</button>
       </div>
-      <p class="note">${owned} / ${albumSize(g)} cartes découvertes${g===2?" dans la Génération 2":""}</p>
-      <button class="sugbar" data-act="suggest">💡 Une réf qui manque ? Propose-la${L.sugUsed?"":'<span class="newtag">NOUVEAU</span>'}</button>
+      <div class="bfoot"><span class="note">${owned} / ${albumSize(g)} cartes</span>
+      <button class="sugbar" data-act="suggest">💡 Proposer une réf${L.sugUsed?"":'<span class="newtag">NEW</span>'}</button></div>
     </div>
   </div>`;
 }
