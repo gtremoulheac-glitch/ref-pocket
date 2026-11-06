@@ -402,6 +402,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .gfs .cnt{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:99px;background:#ff3b6b;color:#fff;font-size:11px;padding:0 5px;margin-left:4px}
 .adminwrap .grid .tile{display:grid;gap:6px}
 .sugs{display:grid;gap:10px}
+.rank{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.rank li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
 .sug{display:grid;gap:6px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--tc);border-radius:12px;padding:12px 14px}
 .sug p{margin:0}
 .sug .plat{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;white-space:nowrap}
@@ -464,7 +466,7 @@ const IMG_W = 640, IMG_H = 476; // zone image d'une carte (même proportion que 
 const BUCKET = "cartes";
 let view = "list", q = "", tf = "all", rf = "all", sf = false, ED = null, ME = null;
 // gf : quelle partie du catalogue on regarde ("1", "2" = génération publiée, "prep" = en préparation, "sug" = propositions des joueurs)
-let gf = "1", SUGS = [], PSEUDO = {};
+let gf = "1", SUGS = [], PSEUDO = {}, RANK = null;
 
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;$("#toasts").appendChild(t);setTimeout(()=>t.remove(),3600);}
 function errMsg(e){const m=e?.message||String(e);if(/Failed to fetch|NetworkError|Load failed/i.test(m))return "Connexion au serveur impossible.";if(/row-level security/i.test(m))return "Refusé : ton compte n'a pas les droits d'administration.";if(/duplicate key/i.test(m))return "Cet identifiant existe déjà.";return m;}
@@ -482,6 +484,7 @@ async function load(){
 async function loadSugs(){
   const [r,p]=await Promise.all([sb.from("suggestions").select("*").order("created_at",{ascending:false}).limit(300),sb.from("profiles").select("id,pseudo")]);
   SUGS=r.error?[]:r.data; PSEUDO=p.error?{}:Object.fromEntries(p.data.map(x=>[x.id,x.pseudo]));
+  const k=await sb.rpc("suggest_ranking"); RANK=k.error?null:k.data;
 }
 function genMissing(g){return ["C","R","E","L"].filter(r=>!CARDS.some(c=>c.gen===g&&c.r===r&&c.active&&!c.draft));}
 function message(title,text,link){
@@ -573,9 +576,18 @@ function renderSugs(){
       <button data-gf="sug" aria-pressed="true">💡 Propositions${pend.length?` <span class="cnt">${pend.length}</span>`:""}</button></div>
     <div style="display:grid;gap:6px"><p class="eyebrow">Propositions des joueurs</p><h1>${pend.length} en attente</h1>
       <p class="note">La plateforme choisie par le joueur devient le type de la carte. Valider crée la carte en préparation dans la Génération 2 (rareté, stats et image à compléter), rien n'est visible pour les joueurs avant que tu la publies.</p></div>
+    ${contestAdminHTML()}
     ${pend.length?`<div class="sugs">${pend.map(row).join("")}</div>`:'<div class="empty-state">Aucune proposition en attente.</div>'}
     ${done.length?`<details class="hist"><summary>Déjà traitées (${done.length})</summary><div class="sugs">${done.map(row).join("")}</div></details>`:""}
   </div>`;
+}
+function contestAdminHTML(){
+  const k=RANK, top=k?.top||[], pz=k?.prizes||[5000,3000,1500], medal=["🥇","🥈","🥉"];
+  return `<section class="edsec"><h2>🏆 Concours des réfs</h2>
+    <p class="note">Manche en cours depuis le ${k?new Date(k.since).getFullYear()<2001?"début":new Date(k.since).toLocaleDateString("fr-FR"):"?"}. On compte les réfs <b>validées</b>. Clôturer paie ${pz.join(" / ")} K aux 3 premiers et lance une nouvelle manche (les compteurs repartent à zéro).</p>
+    ${top.length?`<ol class="rank">${top.map((x,i)=>`<li><span>${medal[i]||(i+1)+"."} <b>${esc(x.pseudo||"?")}</b></span><span class="note">${x.n} validée${x.n>1?"s":""}${i<3?` → ${pz[i]} K`:""}</span></li>`).join("")}</ol>`:'<p class="note">Personne n\'a encore de réf validée dans cette manche.</p>'}
+    ${k?.last?.podium?.length?`<p class="note">Manche précédente (clôturée le ${new Date(k.last.closed_at).toLocaleDateString("fr-FR")}) : ${k.last.podium.map(x=>`${esc(x.pseudo||"?")} ${x.prize} K`).join(" · ")}</p>`:""}
+    <div class="row"><button class="btn foil" data-closecontest="1" ${top.length?"":"disabled"}>Clôturer la manche et payer le podium</button></div></section>`;
 }
 async function reviewSug(b,ok){
   b.disabled=true;
@@ -1191,6 +1203,9 @@ document.addEventListener("click",e=>{
   }
   if(b.dataset.edit) return openEditor(b.dataset.edit);
   if(b.dataset.gf){gf=b.dataset.gf;tf="all";rf="all";q="";renderList();scrollTo(0,0);return;}
+  if(b.dataset.closecontest){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmer : payer et remettre à zéro";return;}
+    b.disabled=true;return sb.rpc("close_suggest_contest").then(async r=>{if(r.error){toast(errMsg(r.error));b.disabled=false;return;}
+      toast(r.data.length?`Podium payé : ${r.data.map(x=>`${x.pseudo} +${x.prize} K`).join(", ")}`:"Manche clôturée");await load();renderList();});}
   if(b.dataset.sgok) return reviewSug(b,true);
   if(b.dataset.sgno) return reviewSug(b,false);
   if(b.dataset.publish){const c=CARDS.find(x=>x.id===b.dataset.publish);if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Confirmer";return;}

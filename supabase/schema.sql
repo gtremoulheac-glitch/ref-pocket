@@ -1825,6 +1825,63 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
+-- 13. Concours des propositions : les 3 joueurs avec le plus de réfs VALIDÉES
+-- depuis le début de la manche gagnent 5000 / 3000 / 1500 K quand un admin clôture.
+-- (On compte les validées, pas les envoyées, sinon il suffirait de spammer.)
+-- ---------------------------------------------------------------------
+create table if not exists public.suggest_contests (
+  id        bigserial primary key,
+  since     timestamptz not null,
+  closed_at timestamptz not null default now(),
+  podium    jsonb not null default '[]'
+);
+alter table public.suggest_contests enable row level security;
+drop policy if exists "lecture concours" on public.suggest_contests;
+create policy "lecture concours" on public.suggest_contests for select to authenticated using (true);
+
+create or replace function public._contest_since() returns timestamptz language sql stable as $$
+  select coalesce((select (v->>'since')::timestamptz from public.settings where k = 'concours_refs'), '2000-01-01'::timestamptz) $$;
+create or replace function public._contest_prizes() returns int[] language sql immutable as $$ select array[5000, 3000, 1500] $$;
+
+-- Classement de la manche en cours : égalité départagée par celui qui a atteint son total le premier
+create or replace function public.suggest_ranking() returns jsonb
+language sql stable security definer set search_path = public as $$
+  with r as (
+    select author, count(*)::int as n, max(reviewed_at) as last
+    from suggestions where status = 'accepted' and reviewed_at >= _contest_since()
+    group by author
+  ), o as (
+    select r.*, row_number() over (order by n desc, last asc) as rk from r
+  )
+  select jsonb_build_object(
+    'since', _contest_since(),
+    'prizes', to_jsonb(_contest_prizes()),
+    'top', coalesce((select jsonb_agg(jsonb_build_object('user', author, 'pseudo', (select pseudo from profiles where id = author), 'n', n, 'rank', rk) order by rk) from o where rk <= 10), '[]'),
+    'me', (select jsonb_build_object('n', n, 'rank', rk) from o where author = auth.uid()),
+    'last', (select jsonb_build_object('closed_at', closed_at, 'podium', podium) from suggest_contests order by id desc limit 1)
+  ) $$;
+
+-- Admin : clôturer la manche, payer le podium, et en ouvrir une nouvelle
+create or replace function public.close_suggest_contest() returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare sn timestamptz := _contest_since(); pz int[] := _contest_prizes(); pod jsonb := '[]'; x record;
+begin
+  if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
+  for x in
+    select author, count(*)::int as n, max(reviewed_at) as last, row_number() over (order by count(*) desc, max(reviewed_at) asc) as rk
+    from suggestions where status = 'accepted' and reviewed_at >= sn
+    group by author order by rk limit 3
+  loop
+    perform _move_kheys(x.author, pz[x.rk], 'concours_refs');
+    pod := pod || jsonb_build_object('user', x.author, 'pseudo', (select pseudo from profiles where id = x.author), 'n', x.n, 'rank', x.rk, 'prize', pz[x.rk]);
+  end loop;
+  insert into suggest_contests(since, podium) values (sn, pod);
+  insert into settings(k, v) values ('concours_refs', jsonb_build_object('since', now()))
+    on conflict (k) do update set v = excluded.v, updated_at = now();
+  return pod;
+end $$;
+
+-- ---------------------------------------------------------------------
 -- 10. Droits : seules les fonctions publiques sont appelables
 -- ---------------------------------------------------------------------
 do $droits$
@@ -1848,7 +1905,8 @@ revoke all on function public.create_profile(text), public.my_profile(), public.
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
   public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack(),
   public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
-  public.refuse_suggestion(bigint), public.publish_cards(text[])
+  public.refuse_suggestion(bigint), public.publish_cards(text[]),
+  public.suggest_ranking(), public.close_suggest_contest()
   from public, anon;
 grant execute on function public.create_profile(text), public.my_profile(), public.open_booster(boolean,int),
   public.discard_card(bigint), public.list_card(bigint,int), public.cancel_listing(bigint), public.buy_listing(bigint),
@@ -1861,5 +1919,6 @@ grant execute on function public.create_profile(text), public.my_profile(), publ
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
   public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack(),
   public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
-  public.refuse_suggestion(bigint), public.publish_cards(text[])
+  public.refuse_suggestion(bigint), public.publish_cards(text[]),
+  public.suggest_ranking(), public.close_suggest_contest()
   to authenticated;

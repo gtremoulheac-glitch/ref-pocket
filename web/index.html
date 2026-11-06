@@ -533,6 +533,15 @@ dialog{overflow-y:auto}
 .sugrow .st.accepted{background:color-mix(in srgb,#3dffa8 25%,var(--panel));color:#3dffa8}
 .sugrow .st.refused{opacity:.6}
 .newsdlg{text-align:center;justify-items:center;gap:14px}
+.contest{display:grid;gap:8px;padding:12px;border-radius:14px;background:color-mix(in srgb,#ffd23f 9%,var(--panel));border:1px solid color-mix(in srgb,#ffd23f 35%,var(--line))}
+.contest h3{margin:0;font-size:17px}
+.contest p{margin:0}
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cp{display:grid;justify-items:center;gap:2px;padding:8px 4px;border-radius:10px;background:var(--panel);text-align:center;min-width:0}
+.cp b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cp.me{box-shadow:0 0 0 2px #ffd23f}
+.cp .cm{font-size:22px;line-height:1}
+.cp .cz{font-family:var(--f-mono);font-size:12px;color:#ffd23f;font-weight:700}
 .newsitem{display:grid;gap:8px;justify-items:center;padding-top:12px;border-top:1px solid var(--line)}
 .newsitem:first-of-type{border-top:0;padding-top:0}
 .newsitem p{margin:0;color:var(--muted)}
@@ -2717,10 +2726,10 @@ let SG=null;
 async function openSuggest(){
   const dlg=$("#dlg");
   if(!L.sugUsed){L.sugUsed=1;saveL();renderTop();if(tab==="boosters")render();}
-  SG={plat:SG?.plat||null,name:SG?.name||"",det:SG?.det||"",link:SG?.link||"",mine:null,sending:false};
+  SG={plat:SG?.plat||null,name:SG?.name||"",det:SG?.det||"",link:SG?.link||"",mine:null,rank:SG?.rank||null,sending:false};
   drawSuggest(); if(!dlg.open) dlg.showModal();
-  const r=await sb.from("suggestions").select("id,name,platform,status,created_at").eq("author",S.me.id).order("created_at",{ascending:false}).limit(30);
-  if(!SG||!$("#sgform")) return; SG.mine=r.error?[]:r.data; drawSuggest(true);
+  const [r,k]=await Promise.all([sb.from("suggestions").select("id,name,platform,status,created_at").eq("author",S.me.id).order("created_at",{ascending:false}).limit(30),sb.rpc("suggest_ranking")]);
+  if(!SG||!$("#sgform")) return; SG.mine=r.error?[]:r.data; SG.rank=k.error?null:k.data; drawSuggest(true);
 }
 function drawSuggest(keep){
   const dlg=$("#dlg"), plats=Object.entries(TYPES);
@@ -2730,6 +2739,7 @@ function drawSuggest(keep){
     <p class="eyebrow"><span class="newtag" style="margin:0 6px 0 0">NOUVEAU</span>Génération 2</p>
     <h2>Propose une réf</h2>
     <p class="note">Une réf culte manque au jeu ? Envoie-la. Si l'équipe la valide, elle devient une carte de la Génération 2, avec ton pseudo dessus.</p>
+    ${contestHTML(SG.rank)}
     <div class="field"><label for="sg-name">Nom de la réf</label><input type="text" id="sg-name" maxlength="60" autocomplete="off" placeholder="Ex. « C'est pas faux »" value="${esc(SG.name)}"></div>
     <div class="field"><span class="lbl" id="sg-pl">D'où vient-elle ? <span class="note">(obligatoire)</span></span>
       <div class="platgrid" role="radiogroup" aria-labelledby="sg-pl">${plats.map(([k,t])=>`<button type="button" role="radio" data-sgplat="${esc(k)}" aria-pressed="${SG.plat===k}" aria-checked="${SG.plat===k}" style="--tc:${esc(t.color)}"><span class="dot"></span>${esc(t.name)}</button>`).join("")}</div></div>
@@ -2763,11 +2773,25 @@ function drawSuggest(keep){
     drawSuggest(true);$("#sgmine")?.scrollIntoView({block:"nearest",behavior:"smooth"});};
 }
 
+/* Concours : les 3 joueurs avec le plus de réfs validées gagnent des Kheys */
+const CONTEST_PRIZES=[5000,3000,1500];
+function contestHTML(k){
+  const pz=k?.prizes||CONTEST_PRIZES, medal=["🥇","🥈","🥉"];
+  const top=(k?.top||[]).slice(0,3), me=k?.me;
+  const podium=[0,1,2].map(i=>{const x=top[i];return `<div class="cp${x&&x.user===S.me.id?" me":""}"><span class="cm">${medal[i]}</span><b>${x?esc(x.pseudo||"?"):"—"}</b><span class="note">${x?`${x.n} validée${x.n>1?"s":""}`:"Place libre"}</span><span class="cz">${fmt(pz[i])} K</span></div>`;}).join("");
+  const last=k?.last?.podium?.length?`<p class="note">Dernier gagnant : 🥇 ${esc(k.last.podium[0].pseudo||"?")} (${fmt(k.last.podium[0].prize)} K)</p>`:"";
+  return `<section class="contest"><h3>🏆 Concours des réfs</h3>
+    <p class="note">Les 3 joueurs qui ont le plus de réfs <b>validées</b> gagnent ${pz.map(fmt).join(" / ")} K à la fin de la manche.</p>
+    <div class="podium">${podium}</div>
+    <p class="note">${k===null?"Chargement du classement…":me?`Toi : ${me.rank}<sup>${me.rank===1?"er":"e"}</sup> avec ${me.n} réf${me.n>1?"s":""} validée${me.n>1?"s":""}.`:"Tu n'as pas encore de réf validée dans cette manche."}</p>${last}</section>`;
+}
+
 /* Pop-up « Nouveau » : annonce une seule fois chaque nouveauté */
 function showNews(){
   if(!S.me||B||$("#dlg").open||!$("#opening").hidden) return;
   const items=[];
   if(!L.newsSug) items.push({k:"newsSug",h:"Propose tes réfs !",p:"Une réf culte manque ? Envoie-la en 30 secondes depuis le bouton 💡 : choisis sa plateforme (YouTube, Snap, TikTok…) et explique-la. Si l'équipe la valide, elle rejoint la Génération 2 avec ton pseudo.",b:"Proposer une réf",go:openSuggest});
+  if(!L.newsContest) items.push({k:"newsContest",h:"Concours des réfs 🏆",p:"Les 3 joueurs qui font valider le plus de réfs gagnent 5 000, 3 000 et 1 500 Kheys à la fin de la manche. Propose tes meilleures !",b:"Voir le classement",go:openSuggest});
   if(!L.newsG2&&genReady(2)) items.push({k:"newsG2",h:"La Génération 2 est là !",p:"Une nouvelle collection, avec ses propres boosters et 6 compétences inédites : Feat, En direct, Cancel, Ghosting, Abonne-toi et Bad buzz. Choisis « Génération 2 » au-dessus du booster.",b:"Ouvrir un booster Gén. 2",go:()=>{L.bgen=2;saveL();tab="boosters";render();}});
   if(!items.length) return;
   for(const x of items) L[x.k]=1; saveL();
