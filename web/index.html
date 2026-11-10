@@ -575,47 +575,34 @@ dialog{overflow-y:auto}
 @keyframes splitr{to{transform:translateX(58%) rotate(9deg);opacity:0}}
 @keyframes seamflash{0%{opacity:1;transform:scaleX(1)}35%{opacity:1;transform:scaleX(10)}100%{opacity:0;transform:scaleX(40)}}
 @keyframes g2glitch{33%{translate:-4px 0;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55)) hue-rotate(70deg)}66%{translate:4px 0}}
-/* Révélation des épiques / légendaires Gén. 2 : les indices arrivent comme des notifications */
-.wo.g2{background:repeating-linear-gradient(0deg,rgba(33,212,253,.05) 0 1px,transparent 1px 4px),radial-gradient(ellipse 120% 70% at 50% 105%,color-mix(in srgb,var(--wc) 34%,#03040a) 0%,#03040a 62%)}
-.wo.g2 .beam,.wo.g2 .haze{display:none}
-.notif{display:grid;justify-items:center;gap:10px;width:min(86vw,360px);padding:14px 18px 22px;border-radius:24px;background:rgba(255,255,255,.1);
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 24px 60px -24px var(--wc)}
-.notif .app{justify-self:stretch;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:0;text-transform:none}
-.notif .app i{font-style:normal;display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#21d4fd,#ff3bd5);color:#fff;font-size:9px;font-weight:900}
-.wo.g2 .clue .big{font-size:clamp(30px,10vw,56px)}
-.wo.g2 .clue .sw{width:56px;height:56px}
-.wo.g2 .clue.show>.notif{animation:notifin .6s cubic-bezier(.2,1.3,.4,1) backwards}
-@keyframes notifin{from{transform:translateY(-45vh) scale(.92);opacity:0}}
-/* Dos des cartes Gén. 2 : même style que le booster */
-.cardback.g2{background-color:#0b0820;overflow:hidden;isolation:isolate}
-.cardback.g2::after{content:none}
-.cardback.g2::before{z-index:2;background:linear-gradient(135deg,var(--b1),var(--b2))}
-.cardback.g2>*{position:relative;z-index:1}
-.cardback.g2>.pfx{position:absolute;z-index:0}
-.cardback.skin-neon{--b1:#21d4fd;--b2:#ff3bd5}.cardback.skin-vapor{--b1:#ffe46b;--b2:#ff4fa3}.cardback.skin-glitch{--b1:#ff2a6d;--b2:#05d9e8}
-.cardback.g2 span{font-size:24cqw;background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#fff;filter:none}
-.cardback.skin-neon span{text-shadow:0 0 1.5cqw #21d4fd,0 0 4cqw #21d4fd,0 0 8cqw #ff3bd5}
-.cardback.skin-vapor span{text-shadow:1.2cqw 1.2cqw 0 #ff4fa3,2.4cqw 2.4cqw 0 #21d4fd}
-.cardback.skin-glitch span{text-shadow:-1.2cqw 0 #ff2a6d,1.2cqw 0 #05d9e8}
-.cardback .g2t{position:absolute;bottom:9%;left:0;right:0;text-align:center;font-family:var(--f-display);font-size:7cqw;letter-spacing:.12em;color:#fff;opacity:.85}
-.cardback.skin-neon .g2t{color:#ff7be6;text-shadow:0 0 2cqw #ff3bd5}
-.cardback.skin-vapor .g2t{color:#1b0a3d;bottom:auto;top:8%;background:#21d4fd;left:30%;right:30%;border-radius:1.5cqw;padding:.6cqw 0}
-.cardback.skin-glitch .g2t{color:#050505;background:#fff;left:32%;right:32%;padding:.6cqw 0}
-.cardback.skin-vapor .pfx::after{height:38%}
-/* Animations Gén. 2 aux couleurs du design */
-.ov.g2 .halo.myst{background:radial-gradient(circle,var(--g2a) 0%,transparent 65%)}
-.ov.g2 .halo.myst::after{background:radial-gradient(circle,var(--g2b) 0%,transparent 65%)}
-.ov.g2 .sc.await.myst .cardback{animation:auramg2 1.5s ease-in-out infinite}
-@keyframes auramg2{0%,100%{box-shadow:0 0 18px 2px var(--g2a),0 18px 40px -10px rgba(0,0,0,.7)}50%{box-shadow:0 0 46px 10px var(--g2b),0 18px 40px -10px rgba(0,0,0,.7)}}
-.ov.g2 .ring{box-shadow:0 0 30px var(--rc,#fff),0 0 60px var(--g2a)}
-.ov.g2 .ring.r2{border-color:var(--g2b)}
-.ov.g2 .flash{background:radial-gradient(circle at 50% 45%,#fff,var(--g2a) 45%,transparent 80%)}
-.ov.g2 .flash.gold{background:radial-gradient(circle at 50% 45%,#fff6c8,#ffd23f 30%,var(--g2b) 55%,transparent 80%)}
-.ov.g2 .cardinfo .rname{text-shadow:0 0 14px currentColor,-2px 0 var(--g2b),2px 0 var(--g2a)}
-.ov.g2 .cardinfo .ovrline{color:var(--g2a);opacity:.85}
-.ov.g2 .sc.gl{animation:cardglitch .5s steps(4)}
-@keyframes cardglitch{25%{translate:-6px 0;filter:hue-rotate(80deg) saturate(2)}50%{translate:5px 2px;filter:hue-rotate(-60deg)}75%{translate:-2px -1px;filter:none}}
-@media (prefers-reduced-motion:reduce){.ov.g2 .sc.gl{animation:none}}
+/* Révélation des épiques / légendaires Gén. 2 : enseigne néon */
+.wo.g2{background:radial-gradient(ellipse 110% 60% at 50% 100%,color-mix(in srgb,var(--g2b) 28%,#03030a) 0%,#03030a 60%);--na:var(--g2a)}
+.wo.g2:not(.mys){--na:var(--wc)}
+.wo.g2 .ngrid{position:absolute;left:-40%;right:-40%;bottom:0;height:20%;pointer-events:none;transform-origin:50% 100%;transform:perspective(260px) rotateX(62deg);
+  background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--g2a) 70%,transparent) 0 2px,transparent 2px 7%),repeating-linear-gradient(0deg,color-mix(in srgb,var(--g2a) 70%,transparent) 0 2px,transparent 2px 12%);
+  -webkit-mask:linear-gradient(transparent,#000 60%);mask:linear-gradient(transparent,#000 60%);animation:gridrun 1.2s linear infinite}
+@keyframes gridrun{to{background-position:0 0,0 12%}}
+.wo.g2 .nhz{position:absolute;left:0;right:0;bottom:20%;height:3px;background:var(--g2b);box-shadow:0 0 12px var(--g2b),0 0 40px var(--g2b),0 0 90px var(--g2b)}
+.wo.g2 .nframe{position:absolute;left:50%;top:50%;width:min(84vw,380px);height:min(46vh,400px);translate:-50% -58%;overflow:visible;pointer-events:none}
+.wo.g2 .nframe rect{fill:none;stroke:var(--na);stroke-width:1.4px;vector-effect:non-scaling-stroke;stroke-dasharray:100;stroke-dashoffset:100;
+  filter:drop-shadow(0 0 4px var(--na)) drop-shadow(0 0 14px var(--na));animation:framedraw .9s cubic-bezier(.6,0,.3,1) forwards;transition:stroke .3s}
+@keyframes framedraw{to{stroke-dashoffset:0}}
+.wo.g2:not(.mys) .nframe rect{animation:framedraw .9s cubic-bezier(.6,0,.3,1) forwards,neonflick .9s steps(1)}
+.wo.g2 .clue{translate:0 -8%}
+.wo.g2 .clue .lab{color:#fff;letter-spacing:.35em;text-shadow:0 0 6px var(--g2b),0 0 16px var(--g2b)}
+.wo.g2 .clue .big{color:#fff;text-shadow:0 0 3px #fff,0 0 10px var(--cc),0 0 24px var(--cc),0 0 52px var(--cc);font-size:clamp(28px,9.5vw,60px);max-width:min(76vw,340px)}
+.wo.g2 .clue .sw{width:64px;height:64px;background:transparent;border:5px solid #fff;box-shadow:0 0 10px var(--cc),0 0 26px var(--cc),inset 0 0 10px var(--cc),inset 0 0 22px var(--cc);border-color:color-mix(in srgb,var(--cc) 40%,#fff)}
+.wo.g2 .clue .pips{color:#fff;text-shadow:0 0 6px var(--cc),0 0 18px var(--cc),0 0 36px var(--cc)}
+.wo.g2 .clue.show>*{animation:neonon 1s steps(1) backwards}
+.wo.g2 .clue.show>.lab{animation-duration:.6s}
+.wo.g2 .clue.hide>*{animation:neonoff .25s steps(2) forwards}
+@keyframes neonon{0%{opacity:0}8%{opacity:1}14%{opacity:.15}22%{opacity:1}30%{opacity:.3}36%{opacity:.9}44%{opacity:.4}52%,100%{opacity:1}}
+@keyframes neonoff{50%{opacity:.4}100%{opacity:0}}
+@keyframes neonflick{0%{opacity:1}10%{opacity:.2}20%{opacity:1}35%{opacity:.4}45%,100%{opacity:1}}
+.wo.g2 .wo-dots i{border-radius:2px}
+.wo.g2 .wo-dots i.on{background:#fff;box-shadow:0 0 6px var(--na),0 0 14px var(--na)}
+.wo.g2 .wo-skip{color:rgba(255,255,255,.55)}
+@media (prefers-reduced-motion:reduce){.wo.g2 .ngrid,.wo.g2 .clue.show>*,.wo.g2 .nframe rect{animation:none;stroke-dashoffset:0}}
 /* Booster à 3 cartes */
 .crise{position:absolute;z-index:8;left:16px;right:16px;margin:0 auto;top:calc(64px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100% - 32px);
   background:#ff3b6b;color:#fff;font-size:13px;white-space:nowrap;padding:7px 14px;border-radius:99px;box-shadow:0 12px 30px -10px #ff3b6b;text-align:center;animation:crise 3.2s ease forwards}
@@ -1394,7 +1381,11 @@ const Opening={
       yr?{lab:"Époque",html:`<div class="big" style="--cc:#f3b4ff">${esc(yr)}</div>`}:null,
       {lab:"Rareté",rar:true,html:`<div class="pips" style="--cc:${wc}">${RARITIES[p.c.r].pip.repeat(p.c.r==="L"?3:2)}</div><div class="big" style="--cc:${wc}">${RARITIES[p.c.r].name}</div>`},
     ].filter(Boolean);
-    wo.innerHTML=`<div class="haze"></div><div class="beam l"></div><div class="beam r"></div><div class="beam c"></div><div class="floor"></div>
+    // Gén. 2 : enseigne néon (cadre lumineux qui se dessine, indices qui s'allument comme des tubes néon)
+    wo.innerHTML=(this.gen===2
+      ?`<div class="ngrid"></div><div class="nhz"></div>
+        <svg class="nframe" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="2" y="2" width="96" height="96" rx="5" pathLength="100"/></svg>`
+      :`<div class="haze"></div><div class="beam l"></div><div class="beam r"></div><div class="beam c"></div><div class="floor"></div>`)+`
       <div class="wo-dots">${clues.map(()=>"<i></i>").join("")}</div><div class="clue" id="clue"></div><p class="wo-skip">Touche pour passer</p>`;
     ov.appendChild(wo);
     // Sur téléphone, le « clic » du tap qui a révélé la carte arrive juste après sur ce calque : on l'ignore pour ne pas sauter l'animation
@@ -1406,9 +1397,7 @@ const Opening={
     for(let i=0;i<clues.length&&!this.skip&&!this.done;i++){
       dots[i].classList.add("on");
       if(clues[i].rar){wo.style.setProperty("--wc",wc);wo.classList.remove("mys");}   // la vraie couleur n'apparaît qu'avec la rareté
-      box.className="clue";box.innerHTML=this.gen===2
-        ?`<div class="notif"><span class="app"><i>RP</i>Ref Pocket · maintenant</span><span class="lab">${clues[i].lab}</span>${clues[i].html}</div>`
-        :`<span class="lab">${clues[i].lab}</span>${clues[i].html}`;void box.offsetWidth;box.classList.add("show");
+      box.className="clue";box.innerHTML=`<span class="lab">${clues[i].lab}</span>${clues[i].html}`;void box.offsetWidth;box.classList.add("show");
       Sfx.clue(i);buzz(25);
       await this.wait(clues[i].rar&&p.c.r==="L"?1500:1250);
       if(this.skip||this.done)break;
