@@ -332,17 +332,51 @@ create policy "lecture reglages" on public.settings for select using (true);
 -- pity = légendaire garantie au plus tard à ce booster ; holo = chance d'holo par carte
 insert into public.settings(k, v) values ('drops', '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5}')
 on conflict (k) do nothing;
-create or replace function public._drops() returns jsonb language sql stable as $$
-  select '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5}'::jsonb
-         || coalesce((select v from public.settings where k = 'drops'), '{}'::jsonb) $$;
+-- Taux par génération. three = % de chance d'un booster à 3 cartes, price = prix d'un booster.
+-- Gén. 2 : par défaut, les taux de la Gén. 1 ajustés à la part de chaque rareté dans la collection
+-- (s'il y a proportionnellement 2 fois plus de légendaires, elles sortent 2 fois plus souvent).
+-- Un admin peut fixer ses propres taux (clé « drops2 ») ou revenir au calcul automatique.
+drop function if exists public._drops();
+create or replace function public._drops(g int default 1) returns jsonb language plpgsql stable as $$
+declare base jsonb; a numeric[]; b numeric[]; f numeric[] := array[1,1,1];
+begin
+  base := '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5,"three":10,"price":100}'::jsonb
+          || coalesce((select v from public.settings where k = 'drops'), '{}'::jsonb);
+  if coalesce(g, 1) <> 2 then return base; end if;
+  select array[count(*) filter (where rarity = 'R'), count(*) filter (where rarity = 'E'), count(*) filter (where rarity = 'L')]::numeric[]
+         || count(*)::numeric into a from public.cards where gen = 1 and active and not draft;
+  select array[count(*) filter (where rarity = 'R'), count(*) filter (where rarity = 'E'), count(*) filter (where rarity = 'L')]::numeric[]
+         || count(*)::numeric into b from public.cards where gen = 2 and active and not draft;
+  if a[4] > 0 and b[4] > 0 then
+    for i in 1..3 loop
+      if a[i] > 0 and b[i] > 0 then f[i] := least(3, greatest(0.25, (b[i] / b[4]) / (a[i] / a[4]))); end if;
+    end loop;
+  end if;
+  return jsonb_build_object(
+      'r12', least(90, round((base->>'r12')::numeric * f[1], 1)),
+      'e3',  least(60, round((base->>'e3')::numeric * f[2], 1)),
+      'l3',  least(30, round((base->>'l3')::numeric * f[3], 2)),
+      'e4',  least(60, round((base->>'e4')::numeric * f[2], 1)),
+      'l4',  least(30, round((base->>'l4')::numeric * f[3], 2)),
+      'pity', (base->>'pity')::int, 'holo', (base->>'holo')::numeric, 'three', (base->>'three')::numeric, 'price', 150, 'auto', true)
+    || coalesce((select v || '{"auto":false}'::jsonb from public.settings where k = 'drops2'), '{}'::jsonb);
+end $$;
+
+-- Infos boosters pour le jeu : prix et taux de chaque génération (affichés aux joueurs)
+create or replace function public.booster_info() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('1', _drops(1), '2', _drops(2)) $$;
 
 -- Modifier les taux (admin)
-create or replace function public.set_drops(p jsonb) returns jsonb
+drop function if exists public.set_drops(jsonb);
+-- p = null pour la Gén. 2 : revenir au calcul automatique
+create or replace function public.set_drops(p jsonb, p_gen int default 1) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare v jsonb := '{}'::jsonb; key text; n numeric;
 begin
   if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
-  foreach key in array array['r12','e3','l3','e4','l4','holo'] loop
+  if p_gen = 2 and p is null then delete from settings where k = 'drops2'; return _drops(2); end if;
+  foreach key in array array['r12','e3','l3','e4','l4','holo','three'] loop
     n := (p->>key)::numeric;
     if n is null or n < 0 or n > 100 then raise exception 'Taux invalide pour %', key; end if;
     v := v || jsonb_build_object(key, n);
@@ -353,20 +387,33 @@ begin
   n := (p->>'pity')::numeric;
   if n is null or n < 1 or n > 1000 then raise exception 'La garantie doit être entre 1 et 1000 boosters'; end if;
   v := v || jsonb_build_object('pity', n::int);
-  insert into settings(k, v, updated_at) values ('drops', v, now())
+  n := (p->>'price')::numeric;
+  if n is null or n < 10 or n > 100000 then raise exception 'Prix invalide (entre 10 et 100 000 K)'; end if;
+  v := v || jsonb_build_object('price', n::int);
+  insert into settings(k, v, updated_at) values (case when p_gen = 2 then 'drops2' else 'drops' end, v, now())
     on conflict (k) do update set v = excluded.v, updated_at = now();
   return v;
 end $$;
 
 -- Pack de 10 boosters pour 900 Kheys (au lieu de 1 000 à l'unité) : ils s'ajoutent à la réserve
-create or replace function public.buy_booster_pack() returns int
+-- Boosters achetés en pack : réservés à leur génération (bought1 / bought2), à côté des 2 gratuits.
+-- Prix d'un pack = 9 boosters (le 10e est offert).
+alter table public.profiles add column if not exists bought1 int not null default 0;
+alter table public.profiles add column if not exists bought2 int not null default 0;
+-- Anciens packs (stock au-delà de 2) : ils étaient au prix de la Gén. 1
+update public.profiles set bought1 = bought1 + (boosters - 2), boosters = 2 where boosters > 2;
+
+drop function if exists public.buy_booster_pack();
+create or replace function public.buy_booster_pack(p_gen int default 1) returns int
 language plpgsql security definer set search_path = public as $$
-declare u uuid := public._uid(); n int;
+declare u uuid := public._uid(); n int; g int := coalesce(p_gen, 1);
 begin
-  perform _refill(u);
+  if g not in (1, 2) then raise exception 'Génération inconnue'; end if;
+  if not _gen_ready(g) then raise exception 'Les boosters de la génération % ne sont pas encore disponibles', g; end if;
   perform 1 from profiles where id = u for update;
-  perform _move_kheys(u, -900, 'achat_pack_10');
-  update profiles set boosters = boosters + 10, last_refill = now() where id = u returning boosters into n;
+  perform _move_kheys(u, -9 * (_drops(g)->>'price')::int, case when g = 2 then 'achat_pack_10_g2' else 'achat_pack_10' end);
+  if g = 2 then update profiles set bought2 = bought2 + 10 where id = u returning bought2 into n;
+  else update profiles set bought1 = bought1 + 10 where id = u returning bought1 into n; end if;
   return n;
 end $$;
 
@@ -381,7 +428,7 @@ declare
   u uuid := public._uid();
   pr profiles;
   rs text[] := array[]::text[];
-  r text; x float; i int; dr jsonb;
+  r text; x float; i int; dr jsonb; nb int;
   c text; h boolean; is_new boolean; inst bigint;
   out jsonb := '[]'::jsonb;
 begin
@@ -392,17 +439,23 @@ begin
   if p_gen not in (1, 2) then raise exception 'Génération inconnue'; end if;
   if not _gen_ready(p_gen) then raise exception 'Les boosters de la génération % ne sont pas encore disponibles', p_gen; end if;
 
+  dr := _drops(p_gen);
   if p_paid then
-    perform _move_kheys(u, -100, 'achat_booster');
-  else
-    if pr.boosters < 1 then raise exception 'Aucun booster disponible pour l''instant'; end if;
+    perform _move_kheys(u, -(dr->>'price')::int, case when p_gen = 2 then 'achat_booster_g2' else 'achat_booster' end);
+  elsif pr.boosters >= 1 then
+    -- d'abord les boosters gratuits (le compteur de recharge repart plus tôt)
     update profiles set boosters = boosters - 1,
                         last_refill = case when pr.boosters >= 2 then now() else last_refill end
      where id = u;
+  elsif p_gen = 2 and pr.bought2 >= 1 then
+    update profiles set bought2 = bought2 - 1 where id = u;
+  elsif p_gen = 1 and pr.bought1 >= 1 then
+    update profiles set bought1 = bought1 - 1 where id = u;
+  else
+    raise exception 'Aucun booster disponible pour l''instant';
   end if;
 
-  -- Taux de tirage par emplacement (réglables dans l'admin, table settings, clé « drops »)
-  dr := _drops();
+  -- Taux de tirage par emplacement (réglables dans l'admin, table settings, clés « drops » / « drops2 »)
   for i in 1..4 loop
     x := random() * 100;
     if i <= 2 then r := case when x < (dr->>'r12')::numeric then 'R' else 'C' end;
@@ -421,7 +474,11 @@ begin
     update profiles set pity = pity + 1 where id = u;
   end if;
 
-  for i in 1..4 loop
+  -- Petite chance d'un booster à 3 cartes : on retire le premier emplacement (commune ou rare)
+  if random() * 100 < coalesce((dr->>'three')::numeric, 0) then rs := rs[2:4]; end if;
+  nb := array_length(rs, 1);
+
+  for i in 1..nb loop
     select id into c from cards where rarity = rs[i] and active and not draft and gen = p_gen order by random() limit 1;
     if c is null then raise exception 'Aucune carte active de rareté %', rs[i]; end if;
     h := random() * 100 < (dr->>'holo')::numeric;
@@ -1903,7 +1960,7 @@ revoke all on function public.create_profile(text), public.my_profile(), public.
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack(),
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb,int), public.buy_booster_pack(int), public.booster_info(),
   public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
   public.refuse_suggestion(bigint), public.publish_cards(text[]),
   public.suggest_ranking(), public.close_suggest_contest()
@@ -1917,7 +1974,7 @@ grant execute on function public.create_profile(text), public.my_profile(), publ
   public.set_admin(text,boolean), public.delete_card(text), public.upgrade_card(text), public.claim_album(text),
   public.duel_choc(bigint,int,int), public.duel_choc_score(bigint,int), public.duel_choc_pattern(bigint,boolean), public.duel_prize(bigint,int),
   public.counter_trade(bigint,bigint[],int), public.set_showcase(text[]), public.player_page(uuid), public.admin_delete_user(uuid),
-  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb), public.buy_booster_pack(),
+  public.live_duels(), public.duel_watch(bigint), public.duel_voice_send(bigint,text,real), public.set_drops(jsonb,int), public.buy_booster_pack(int), public.booster_info(),
   public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
   public.refuse_suggestion(bigint), public.publish_cards(text[]),
   public.suggest_ranking(), public.close_suggest_contest()

@@ -512,8 +512,92 @@ dialog{overflow-y:auto}
 .u-stats i{font-style:normal;font-family:var(--f-body);font-size:8.5px;font-weight:800;opacity:.6;margin-right:2px;letter-spacing:.04em}
 .u-fx.cx{text-decoration:line-through;opacity:.55}
 /* Génération 2 : booster vert/cyan électrique */
-.pack.g2,.opack.g2 .body,.opack.g2 .strip{background:linear-gradient(135deg,#c6ff3d 0%,#3dffa8 25%,#21d4fd 50%,#5b6cff 75%,#b14dff 100%)}
-.pack.g2{box-shadow:0 20px 50px -18px rgba(60,220,255,.6),inset 0 0 0 3px rgba(255,255,255,.35)}
+/* ---------- Génération 2 : 3 designs de booster (Néon, Vapor, Glitch) ---------- */
+.pack.g2{color:#fff;isolation:isolate}
+.pack.g2::before,.pack.g2::after{content:none}
+.pack.g2>*:not(.pfx){position:relative;z-index:1}
+.pfx{position:absolute;inset:0;pointer-events:none;z-index:0;overflow:hidden;border-radius:inherit}
+.skin-neon{background:radial-gradient(120% 55% at 50% 0%,#3a1c7a 0,transparent 62%),radial-gradient(120% 55% at 50% 100%,#0e5a7a 0,transparent 62%),
+  linear-gradient(rgba(33,212,253,.14) 1px,transparent 1px) 0 0/100% 11%,linear-gradient(90deg,rgba(255,59,213,.14) 1px,transparent 1px) 0 0/16% 100%,#0b0820}
+.pack.skin-neon,.face.skin-neon{box-shadow:inset 0 0 0 2px #21d4fd,inset 0 0 26px rgba(255,59,213,.5)}
+.pack.skin-neon{box-shadow:0 0 34px -8px #21d4fd,inset 0 0 0 2px #21d4fd,inset 0 0 26px rgba(255,59,213,.5)}
+.skin-neon .pt{color:#fff;text-shadow:0 0 6px #21d4fd,0 0 16px #21d4fd,0 0 30px #ff3bd5}
+.skin-neon .pgen{background:transparent;color:#ff7be6;box-shadow:inset 0 0 0 2px #ff3bd5,0 0 12px #ff3bd5;text-shadow:0 0 8px #ff3bd5}
+.skin-neon .ps{background:#21d4fd;color:#0b0820}
+.skin-vapor{background:radial-gradient(circle at 50% 47%,#ffe46b 0 12%,#ff8a3d 20%,transparent 20.5%),
+  linear-gradient(180deg,#1b0a3d 0%,#5b1ea8 30%,#ff4fa3 52%,#ff9a3d 57%,#21103f 57.3%,#140828 100%)}
+.pack.skin-vapor{box-shadow:0 20px 50px -18px rgba(255,79,163,.7),inset 0 0 0 3px rgba(255,255,255,.25)}
+.face.skin-vapor{box-shadow:inset 0 0 0 3px rgba(255,255,255,.25)}
+.skin-vapor .pfx::after{content:"";position:absolute;left:-30%;right:-30%;bottom:0;height:43%;transform-origin:50% 100%;transform:perspective(160px) rotateX(55deg);
+  background:repeating-linear-gradient(90deg,rgba(255,79,163,.85) 0 2px,transparent 2px 9%),repeating-linear-gradient(0deg,rgba(255,79,163,.85) 0 2px,transparent 2px 14%)}
+.skin-vapor .pt{color:#fff;text-shadow:3px 3px 0 #ff4fa3,6px 6px 0 #21d4fd}
+.skin-vapor .pgen{background:#21d4fd;color:#1b0a3d}
+.skin-vapor .ps{background:#1b0a3d;color:#ffe46b}
+.skin-glitch{background:linear-gradient(180deg,transparent 0 21%,rgba(255,42,109,.85) 21% 23%,transparent 23% 64%,rgba(5,217,232,.85) 64% 65.5%,transparent 65.5% 82%,rgba(198,255,61,.8) 82% 83%,transparent 83%),
+  repeating-linear-gradient(0deg,rgba(255,255,255,.07) 0 1px,transparent 1px 4px),linear-gradient(160deg,#222,#050505)}
+.pack.skin-glitch{box-shadow:0 20px 50px -18px rgba(5,217,232,.6),inset 0 0 0 3px rgba(255,255,255,.2)}
+.face.skin-glitch{box-shadow:inset 0 0 0 3px rgba(255,255,255,.2)}
+.skin-glitch .pt{color:#fff;text-shadow:-3px 0 #ff2a6d,3px 0 #05d9e8;animation:glitchtxt 2.6s steps(1) infinite}
+.skin-glitch .pgen{background:#fff;color:#050505}
+.skin-glitch .ps{background:#ff2a6d;color:#fff}
+@keyframes glitchtxt{0%,84%,100%{translate:0 0}86%{translate:-4px 1px;text-shadow:4px 0 #ff2a6d,-4px 0 #05d9e8}90%{translate:3px -2px}94%{translate:-1px 0}}
+/* Ouverture Gén. 2 : on fait glisser pour « déverrouiller », le paquet s'ouvre en deux */
+.ov.g2{background:linear-gradient(rgba(33,212,253,.05) 1px,transparent 1px) 0 0/100% 32px,linear-gradient(90deg,rgba(33,212,253,.05) 1px,transparent 1px) 0 0/32px 100%,
+  radial-gradient(ellipse 90% 60% at 50% 40%,#123a5a 0%,#0a0f22 55%,#04050b 100%)}
+.opack2{position:relative;width:calc(var(--cw) * .92);aspect-ratio:63/98;cursor:grab;touch-action:none;animation:bob 3.2s ease-in-out infinite;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55));--p:0}
+.opack2:active{cursor:grabbing}
+.opack2 .half{position:absolute;inset:0;border-radius:18px;will-change:transform}
+.opack2 .half.l{clip-path:inset(0 50% 0 0);transform:translateX(calc(var(--p) * -3%))}
+.opack2 .half.r{clip-path:inset(0 0 0 50%);transform:translateX(calc(var(--p) * 3%))}
+.opack2 .face{position:absolute;inset:0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--cw) * .045);overflow:hidden;color:#fff;isolation:isolate;padding-bottom:12%}
+.opack2 .face>*:not(.pfx){position:relative;z-index:1}
+.opack2 .face .pt{font-family:var(--f-display);font-size:calc(var(--cw) * .17);line-height:.88;text-align:center;transform:rotate(-7deg)}
+.opack2 .face .pgen{font-size:calc(var(--cw) * .05);transform:rotate(-6deg)}
+.opack2 .face .ps{font-weight:800;font-size:12px;letter-spacing:.16em;text-transform:uppercase;padding:5px 12px;border-radius:99px}
+.opack2 .face .serie{position:absolute;bottom:21%;font-family:var(--f-mono);font-size:10.5px;font-weight:600;opacity:.75}
+.opack2 .seam{position:absolute;z-index:3;top:3%;bottom:3%;left:50%;width:3px;margin-left:-1.5px;border-radius:3px;background:#fff;opacity:var(--p);
+  box-shadow:0 0 10px #fff,0 0 24px #21d4fd,0 0 48px #ff3bd5}
+.opack2 .unlock{position:absolute;z-index:4;left:8%;right:8%;bottom:5.5%;height:max(38px,calc(var(--cw) * .13));border-radius:99px;background:rgba(8,6,20,.6);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);transition:opacity .2s}
+.opack2 .unlock .ul-t{position:absolute;inset:0;display:grid;place-items:center;padding-left:22%;padding-right:4%;white-space:nowrap;overflow:hidden;
+  font-size:clamp(10px,calc(var(--cw) * .043),14px);font-weight:700;opacity:calc(1 - var(--p) * 1.6);
+  background:linear-gradient(90deg,rgba(255,255,255,.35) 0%,#fff 50%,rgba(255,255,255,.35) 100%) 0 0/200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 2s linear infinite}
+.opack2 .unlock .knob{position:absolute;top:4px;bottom:4px;left:4px;aspect-ratio:1;border-radius:50%;background:#fff;color:#0b0820;display:grid;place-items:center;font-weight:900;
+  box-shadow:0 0 14px rgba(33,212,253,.8);transform:translateX(calc(var(--p) * (var(--cw) * .7728 - 100% - 8px)))}
+@keyframes shimmer{to{background-position:-200% 0}}
+.opack2.torn{animation:g2glitch .3s steps(3)}
+.opack2.torn .unlock{opacity:0}
+.opack2.torn .seam{animation:seamflash .6s ease-out forwards}
+.opack2.torn .half.l{animation:splitl .7s .12s cubic-bezier(.5,0,.3,1) forwards}
+.opack2.torn .half.r{animation:splitr .7s .12s cubic-bezier(.5,0,.3,1) forwards}
+.opack2.gone{transition:opacity .35s;opacity:0}
+@keyframes splitl{to{transform:translateX(-58%) rotate(-9deg);opacity:0}}
+@keyframes splitr{to{transform:translateX(58%) rotate(9deg);opacity:0}}
+@keyframes seamflash{0%{opacity:1;transform:scaleX(1)}35%{opacity:1;transform:scaleX(10)}100%{opacity:0;transform:scaleX(40)}}
+@keyframes g2glitch{33%{translate:-4px 0;filter:drop-shadow(0 30px 40px rgba(0,0,0,.55)) hue-rotate(70deg)}66%{translate:4px 0}}
+/* Révélation des épiques / légendaires Gén. 2 : les indices arrivent comme des notifications */
+.wo.g2{background:repeating-linear-gradient(0deg,rgba(33,212,253,.05) 0 1px,transparent 1px 4px),radial-gradient(ellipse 120% 70% at 50% 105%,color-mix(in srgb,var(--wc) 34%,#03040a) 0%,#03040a 62%)}
+.wo.g2 .beam,.wo.g2 .haze{display:none}
+.notif{display:grid;justify-items:center;gap:10px;width:min(86vw,360px);padding:14px 18px 22px;border-radius:24px;background:rgba(255,255,255,.1);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 24px 60px -24px var(--wc)}
+.notif .app{justify-self:stretch;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:0;text-transform:none}
+.notif .app i{font-style:normal;display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,#21d4fd,#ff3bd5);color:#fff;font-size:9px;font-weight:900}
+.wo.g2 .clue .big{font-size:clamp(30px,10vw,56px)}
+.wo.g2 .clue .sw{width:56px;height:56px}
+.wo.g2 .clue.show>.notif{animation:notifin .6s cubic-bezier(.2,1.3,.4,1) backwards}
+@keyframes notifin{from{transform:translateY(-45vh) scale(.92);opacity:0}}
+/* Booster à 3 cartes */
+.crise{position:absolute;z-index:8;left:16px;right:16px;margin:0 auto;top:calc(64px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100% - 32px);
+  background:#ff3b6b;color:#fff;font-size:13px;white-space:nowrap;padding:7px 14px;border-radius:99px;box-shadow:0 12px 30px -10px #ff3b6b;text-align:center;animation:crise 3.2s ease forwards}
+@keyframes crise{0%{opacity:0;transform:translateY(-20px) rotate(-3deg)}10%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
+.crise-note{margin:0;font-weight:700;color:#ff8aa5}
+/* Fenêtre des taux */
+.rates table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.rates th,.rates td{padding:6px 3px;text-align:center;border-bottom:1px solid var(--line)}
+.rates tbody th{text-align:left;font-weight:700;white-space:nowrap}
+.rates thead th{font-size:11px;color:var(--muted);font-weight:700}
+.rates ul{margin:0;padding-left:18px;display:grid;gap:4px}
+@media (prefers-reduced-motion:reduce){.skin-glitch .pt,.opack2 .unlock .ul-t{animation:none}}
 .pack .pgen,.opack .pgen{font-family:var(--f-display);font-size:15px;letter-spacing:.06em;background:#1a1030;color:#3dffa8;padding:3px 10px;border-radius:8px;transform:rotate(-6deg)}
 .gensel{justify-self:center}
 .gensel button:disabled{opacity:.45}
@@ -842,7 +926,15 @@ const sb = configured && window.supabase ? window.supabase.createClient(CFG.supa
    ========================================================= */
 let TYPES = {}, CARDS = [], BYID = {}, BYR = {}, MATCH = {};
 // Règles (doivent rester alignées avec supabase/schema.sql)
-const REFILL_MS = 3600*1000, MAX_STOCK = 2, BOOSTER_PRICE = 100, PACK_PRICE = 900, PITY = 60;
+const REFILL_MS = 3600*1000, MAX_STOCK = 2, PITY = 60;
+// Prix et taux des boosters, par génération (réglés dans l'admin, envoyés par le serveur)
+let BINFO = null;
+function binfo(g){return (BINFO&&BINFO[g])||{price:g===2?150:100,three:10};}
+function priceOf(g){return +binfo(g).price||(g===2?150:100);}
+function packOf(g){return 9*priceOf(g);}
+// Boosters achetés en pack : réservés à leur génération ; les 2 gratuits servent pour les deux
+function bought(g){return (g===2?S.me?.bought2:S.me?.bought1)||0;}
+function availFor(g){return boostersNow()+bought(g);}
 const DUEL_WIN = 30, DUEL_LOSS = 10, DUEL_DAILY = 10, DECK_SIZE = 6, DECK_MAX = {L:1,E:2};
 const BOTS = ["LeKheyDu38","Ratio_King","Askip_Lucas","MissAllôQuoi","JusteLeblanc"];
 
@@ -885,7 +977,7 @@ async function sync(){
   if(me.error) throw me.error;
   S.me = me.data && me.data.id ? me.data : null;
   if(!S.me) return;
-  const [ins,pl,ls,tr,fr,du,lv,al] = await Promise.all([
+  const [ins,pl,ls,tr,fr,du,lv,al,bi] = await Promise.all([
     sb.from("card_instances").select("id,card_id,holo,lock,obtained_at").eq("owner",S.me.id).limit(5000),
     sb.from("profiles").select("*").order("pseudo"),
     sb.from("listings").select("id,price,seller,created_at,instance_id,inst:card_instances(id,card_id,holo)").eq("status","open").order("created_at",{ascending:false}).limit(300),
@@ -894,11 +986,13 @@ async function sync(){
     sb.from("duels").select("id,player_a,player_b,mode,status,created_at,updated_at").in("status",["waiting","invited","active"]),
     sb.from("card_levels").select("card_id,level").eq("owner",S.me.id),
     sb.from("album_claims").select("album,reward").eq("owner",S.me.id),
+    sb.rpc("booster_info"),
   ]);
   for(const r of [ins,pl,ls,tr,fr,du]) if(r.error) throw r.error;
   // Niveaux et albums : si le script SQL n'a pas encore été relancé, on fait comme s'il n'y en avait pas
   S.levels = lv.error?{}:Object.fromEntries(lv.data.map(x=>[x.card_id,x.level]));
   S.albums = al.error?{}:Object.fromEntries(al.data.map(x=>[x.album,x.reward]));
+  if(!bi.error&&bi.data) BINFO = bi.data;
   S.friends = fr.data; S.duels = du.data;
   loadLive().catch(()=>{});
   S.insts = ins.data; S.players = Object.fromEntries(pl.data.map(p=>[p.id,p]));
@@ -1129,11 +1223,11 @@ const RCOL={C:["#cfc7e0","#8d84a3"],R:["#9fd0ff","#58a8ff","#ffffff"],E:["#e9b8f
 const HOLOCOL=["#ff7ad1","#6ef0ff","#ffe86b","#a98bff","#7dffb0"];
 const Opening={
   pulls:[],cur:0,els:[],busy:false,
-  start(pulls,gen){
-    this.gen=gen===2?2:1;
+  start(pulls,gen,skin){
+    this.gen=gen===2?2:1; this.skin=skin||g2Skin();
     pulls.forEach(p=>p.c.audio&&Sfx.preload(p.c.audio));
     this.pulls=pulls;this.cur=0;this.els=[];this.busy=false;this.done=false;
-    const ov=$("#opening");ov.className="ov";ov.hidden=false;
+    const ov=$("#opening");ov.className="ov"+(this.gen===2?" g2":"");ov.hidden=false;
     ov.innerHTML=`<canvas aria-hidden="true"></canvas><div class="flash" id="ovflash"></div>
       <div class="ov-top"><button class="btn small ghost" id="ovskip">Tout révéler</button><span class="counter" id="ovcount"></span>
       <button class="btn small ghost" id="ovmute" aria-pressed="${!!L.mute}">${L.mute?"Son coupé":"Son activé"}</button></div>
@@ -1147,6 +1241,14 @@ const Opening={
   },
   showPack(){
     const st=$("#stage");
+    if(this.gen===2){
+      // Gén. 2 : le paquet se « déverrouille » comme un téléphone, puis s'ouvre en deux
+      const sk=this.skin, face=`<div class="face skin-${sk.k}">${packArt(2,sk)}<span class="serie">GÉNÉRATION 2 · ${albumSize(2)} RÉFS</span></div>`;
+      st.innerHTML=`<div class="opack2 skin-${sk.k}" id="opack" role="button" tabindex="0" aria-label="Déverrouiller le booster">
+          <div class="half l">${face}</div><div class="half r">${face}</div><div class="seam"></div>
+          <div class="unlock" aria-hidden="true"><span class="knob">➜</span><span class="ul-t">glisse pour déverrouiller</span></div>
+        </div><p class="hint" id="hint">Fais glisser le paquet vers la droite pour le déverrouiller</p>`;
+    } else
     st.innerHTML=`<div class="opack${this.gen===2?" g2":""}" id="opack" role="button" tabindex="0" aria-label="Déchirer le booster">
         <div class="light"></div>
         <div class="strip">◂ GLISSE ▸</div><div class="tear" id="tear"></div>
@@ -1154,14 +1256,14 @@ const Opening={
       </div><p class="hint" id="hint">Glisse sur le haut du paquet pour le déchirer</p>`;
     $("#ovcount").textContent="";
     const pk=$("#opack");let x0=null,prog=0,last=0;
-    const setP=p=>{prog=Math.max(0,Math.min(1,p));pk.style.setProperty("--tp",(prog*100)+"%");};
+    const setP=p=>{prog=Math.max(0,Math.min(1,p));pk.style.setProperty("--tp",(prog*100)+"%");pk.style.setProperty("--p",prog);};
     pk.onpointerdown=e=>{Sfx.unlock();x0=e.clientX;last=0;pk.setPointerCapture(e.pointerId);};
     pk.onpointermove=e=>{if(x0===null||this.busy)return;const p=Math.abs(e.clientX-x0)/(pk.offsetWidth*.75);if(p-last>.08){Sfx.scrape();last=p;}setP(p);if(prog>=1){x0=null;this.tear();}};
     pk.onpointerup=pk.onpointercancel=e=>{if(x0===null)return;const moved=Math.abs(e.clientX-x0);x0=null;if(moved<12)this.autoTear(setP);else if(prog<1){pk.style.transition="";setP(0);}};
     pk.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();this.autoTear(setP);}};
   },
   tap(){
-    if($("#opack")&&!this.busy) return this.autoTear(p=>$("#opack")?.style.setProperty("--tp",(p*100)+"%"));
+    if($("#opack")&&!this.busy) return this.autoTear(p=>{const k=$("#opack");if(k){k.style.setProperty("--tp",(p*100)+"%");k.style.setProperty("--p",p);}});
     const sc=this.els[this.cur]; if(!sc||this.busy) return;
     sc.classList.contains("open")?this.next(1):this.reveal(sc);
   },
@@ -1177,7 +1279,8 @@ const Opening={
     // Première lueur identique pour tous les boosters : elle ne dit rien de la meilleure carte
     pk.style.setProperty("--lc","#fff1c9");pk.classList.add("torn");Sfx.tear();buzz(30);
     const r=pk.getBoundingClientRect();
-    Fx.burst(r.left+r.width/2,r.top+r.height*.12,["#ffd23f","#cf7dff","#58a8ff","#ffffff"],100,{speed:8,up:2,g:.15});
+    if(this.gen===2) Fx.burst(r.left+r.width/2,r.top+r.height*.5,["#21d4fd","#ff3bd5","#c6ff3d","#ffffff"],120,{speed:9,g:.04,life:90});
+    else Fx.burst(r.left+r.width/2,r.top+r.height*.12,["#ffd23f","#cf7dff","#58a8ff","#ffffff"],100,{speed:8,up:2,g:.15});
     this.flash();
     $("#hint").textContent="";
     setTimeout(()=>{Sfx.rise();pk.classList.add("gone");},reduced?0:650);
@@ -1205,6 +1308,8 @@ const Opening={
     });
     void stack.offsetWidth;
     this.layout();
+    if(this.pulls.length<4&&!reduced){const c=document.createElement("div");c.className="crise";c.setAttribute("role","status");
+      c.innerHTML="📉 <b>C'est la crise</b> · 3 cartes seulement";$("#opening").appendChild(c);setTimeout(()=>c.remove(),3200);}
     setTimeout(()=>{if(this.done)return;this.els.forEach(e=>e.style.transitionDelay="");this.focusTop();},reduced?0:650);
   },
   layout(){
@@ -1251,7 +1356,7 @@ const Opening={
     this.busy=true;this.skip=false;
     const wc=p.c.r==="L"?"#ffd23f":"#cf7dff";
     const ov=$("#opening");const wo=document.createElement("div");
-    wo.className="wo mys";
+    wo.className="wo mys"+(this.gen===2?" g2":"");
     const yr=yearOf(p.c);
     const clues=[
       {lab:"Type",html:`<div class="sw" style="--cc:${TYPES[p.c.type].color}"></div><div class="big" style="--cc:${TYPES[p.c.type].color}">${esc(TYPES[p.c.type].name)}</div>`},
@@ -1270,7 +1375,9 @@ const Opening={
     for(let i=0;i<clues.length&&!this.skip&&!this.done;i++){
       dots[i].classList.add("on");
       if(clues[i].rar){wo.style.setProperty("--wc",wc);wo.classList.remove("mys");}   // la vraie couleur n'apparaît qu'avec la rareté
-      box.className="clue";box.innerHTML=`<span class="lab">${clues[i].lab}</span>${clues[i].html}`;void box.offsetWidth;box.classList.add("show");
+      box.className="clue";box.innerHTML=this.gen===2
+        ?`<div class="notif"><span class="app"><i>RP</i>Ref Pocket · maintenant</span><span class="lab">${clues[i].lab}</span>${clues[i].html}</div>`
+        :`<span class="lab">${clues[i].lab}</span>${clues[i].html}`;void box.offsetWidth;box.classList.add("show");
       Sfx.clue(i);buzz(25);
       await this.wait(clues[i].rar&&p.c.r==="L"?1500:1250);
       if(this.skip||this.done)break;
@@ -1368,15 +1475,18 @@ const Opening={
   },
   summary(){
     if(this.done)return;this.done=true;this.busy=false;this.stopVids();Sfx.stopClip();
+    // « Tout révéler » pendant l'animation d'une épique/légendaire : on retire le calque et on rallume la scène
+    document.querySelectorAll("#opening .wo,#opening .crise").forEach(e=>e.remove());$("#stage").classList.remove("dimmed");
     Fx.ambient(false);
-    const pulls=this.pulls,news=pulls.filter(p=>p.isNew).length,best=pulls[pulls.length-1];
+    const pulls=this.pulls,news=pulls.filter(p=>p.isNew).length,best=pulls[pulls.length-1],g=this.gen,left=availFor(g),pr=priceOf(g);
     $("#ovcount").textContent="";$("#ovskip").hidden=true;
     $("#stage").innerHTML=`<div class="sum">
       <p class="eyebrow">Ton booster</p>
       <h1>${news?`${news} nouvelle${news>1?"s":""} carte${news>1?"s":""} !`:"Que des doublons…"}</h1>
       <div class="sumgrid">${pulls.map((p,i)=>`<div class="mini" style="--d:${i*.08}s">${p.isNew?'<span class="newtag">NOUVELLE</span>':""}${cardHTML(p.c,{holo:p.holo})}</div>`).join("")}</div>
-      <p class="sub">Meilleure carte : ${esc(best.c.name)} (${RARITIES[best.c.r].name.toLowerCase()}${best.holo?", holo":""}). Il te reste ${boostersNow()} booster${boostersNow()>1?"s":""}.</p>
-      <div class="row">${boostersNow()>0?'<button class="btn foil" id="sumagain">Ouvrir le suivant</button>':(S.me.kheys>=BOOSTER_PRICE?`<button class="btn foil" id="sumbuy">Acheter un booster · ${BOOSTER_PRICE} K</button>`:"")}
+      ${pulls.length<4?'<p class="crise-note">📉 Booster à 3 cartes… c\'est la crise.</p>':""}
+      <p class="sub">Meilleure carte : ${esc(best.c.name)} (${RARITIES[best.c.r].name.toLowerCase()}${best.holo?", holo":""}). Il te reste ${left} booster${left>1?"s":""}${g===2?" pour la Génération 2":""}.</p>
+      <div class="row">${left>0?'<button class="btn foil" id="sumagain">Ouvrir le suivant</button>':(S.me.kheys>=pr?`<button class="btn foil" id="sumbuy">Acheter un booster · ${fmt(pr)} K</button>`:"")}
       <button class="btn ghost" id="sumcol">Voir ma collection</button><button class="btn ghost" id="sumclose">Fermer</button></div></div>`;
     pulls.forEach((p,i)=>setTimeout(()=>Sfx.pop(i),i*80));
     $("#sumagain")&&($("#sumagain").onclick=()=>{this.close(false);openBooster(false);});
@@ -1603,7 +1713,8 @@ async function openBooster(paid){
     const pulls=r.data.map(x=>({c:BYID[x.card_id],holo:x.holo,isNew:x.is_new})).filter(p=>p.c)
       .sort((a,b)=>RORDER.indexOf(a.c.r)-RORDER.indexOf(b.c.r)||a.holo-b.holo);
     await sync(); renderTop();
-    Opening.test=false; Opening.start(pulls,gen);
+    Opening.test=false; Opening.start(pulls,gen,g2Skin());
+    if(gen===2){L.g2skin=((L.g2skin|0)+1)%G2SKINS.length;saveL();}   // le prochain booster Gén. 2 aura un autre design
   }catch(e){ toast(errMsg(e)); }
   finally{ busyAct=false; document.body.classList.remove("working"); }
 }
@@ -1647,10 +1758,10 @@ function waitingTrades(){const me=S.me?.id;return S.trades.filter(t=>(t.status==
 function renderTop(){
   if(!S.me) return;
   $("#kheys").textContent=fmt(S.me.kheys);
-  const b=boostersNow();
-  $("#boostcount").textContent=b>MAX_STOCK?String(b):`${b}/${MAX_STOCK}`;
-  $("#boosttimer").textContent=b<MAX_STOCK?"· "+dur(nextBoosterMs()):"";
-  const nb=$("#navbadge"); nb.hidden=b<1; nb.textContent=b;
+  const b=boostersNow(), xb=bought(boostGen());
+  $("#boostcount").textContent=(b>MAX_STOCK?String(b):`${b}/${MAX_STOCK}`)+(xb?` +${xb}`:"");
+  $("#boosttimer").textContent=b<MAX_STOCK&&!xb?"· "+dur(nextBoosterMs()):"";
+  const av=b+bought(1)+bought(2), nb=$("#navbadge"); nb.hidden=av<1; nb.textContent=av;
   const tb=$("#tradebadge"), n=incomingTrades().length+incomingFriendReqs().length; tb.hidden=!n; tb.textContent=n;
   const sn=$("#sugnew"); if(sn) sn.hidden=!!L.sugUsed;
   const db=$("#duelbadge"), nd=incomingInvites().length+(B&&B.online&&!B.over&&B.turn===0?1:0); db.hidden=!nd; db.textContent=nd;
@@ -1687,23 +1798,55 @@ addEventListener("resize",fitBars);
     const a=document.activeElement; if(!(a&&a.matches&&a.matches("input,textarea,select"))) nudge(); },300); });
   if(window.visualViewport) visualViewport.addEventListener("resize",()=>{ if(visualViewport.height>=innerHeight-1) nudge(); });
 })();
+/* Boosters de la Génération 2 : 3 designs qui tournent d'un booster à l'autre */
+const G2SKINS=[{k:"neon",n:"Néon"},{k:"vapor",n:"Vapor"},{k:"glitch",n:"Glitch"}];
+function g2Skin(){return G2SKINS[(L.g2skin|0)%G2SKINS.length];}
+function packArt(g,sk){
+  return g===2?`<span class="pfx" aria-hidden="true"></span><span class="pt" data-t="REF POCKET">REF<br>POCKET</span><span class="pgen">GÉN. 2 · ${sk.n.toUpperCase()}</span><span class="ps">4 cartes</span>`
+              :`<span class="pt">REF<br>POCKET</span><span class="ps">4 cartes</span>`;
+}
+function packFace(g,off){
+  const sk=g2Skin();
+  return `<button class="pack${g===2?` g2 skin-${sk.k}`:""}" data-act="open" ${off?"disabled":""} aria-label="Ouvrir un booster de la génération ${g}${g===2?`, design ${sk.n}`:""}">${packArt(g,sk)}</button>`;
+}
+// Taux affichés aux joueurs (transparence : on sait ce qu'on achète)
+function openRates(){
+  const g=boostGen(), d=binfo(g), pc=x=>`${String(+x).replace(".",",")} %`, dlg=$("#dlg");
+  const n=CARDS.filter(c=>c.active&&(c.gen||1)===g), cnt=r=>n.filter(c=>c.r===r).length;
+  const rest=(a,b)=>pc(Math.max(0,Math.round((100-a-b)*100)/100));
+  dlg.innerHTML=`<div class="dlg rates"><p class="eyebrow">Génération ${g}</p><h2>Taux des boosters</h2>
+    <p class="note">Un booster coûte ${fmt(priceOf(g))} K (pack de 10 : ${fmt(packOf(g))} K). Les boosters gratuits servent pour les deux générations, ceux achetés en pack seulement pour leur génération.</p>
+    <table><thead><tr><th>Emplacement</th><th>Commune</th><th>Rare</th><th>Épique</th><th>Légendaire</th></tr></thead><tbody>
+      <tr><th>Cartes 1 et 2</th><td>${pc(100-d.r12)}</td><td>${pc(d.r12)}</td><td>–</td><td>–</td></tr>
+      <tr><th>Carte 3</th><td>–</td><td>${rest(d.e3,d.l3)}</td><td>${pc(d.e3)}</td><td>${pc(d.l3)}</td></tr>
+      <tr><th>Carte 4</th><td>–</td><td>${rest(d.e4,d.l4)}</td><td>${pc(d.e4)}</td><td>${pc(d.l4)}</td></tr>
+    </tbody></table>
+    <ul class="note">
+      <li>Holo : ${pc(d.holo)} par carte.</li>
+      <li>Booster à 3 cartes (la 1<sup>re</sup> manque) : ${pc(d.three)}.</li>
+      <li>Légendaire garantie au plus tard au ${d.pity}<sup>e</sup> booster sans légendaire.</li>
+      <li>Dans cette génération : ${cnt("C")} communes, ${cnt("R")} rares, ${cnt("E")} épiques, ${cnt("L")} légendaires.${g===2&&d.auto?" Les taux sont ajustés au nombre de cartes de chaque rareté.":""}</li>
+    </ul>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="ratesclose">Fermer</button></div></div>`;
+  $("#ratesclose").onclick=()=>dlg.close(); dlg.showModal();
+}
 function viewBoosters(){
-  const g=boostGen(), owned=CARDS.filter(c=>c.active&&(c.gen||1)===g&&count(c.id)>0).length, b=boostersNow(), r2=genReady(2);
+  const g=boostGen(), owned=CARDS.filter(c=>c.active&&(c.gen||1)===g&&count(c.id)>0).length, b=availFor(g), free=boostersNow(), r2=genReady(2), pr=priceOf(g), pp=packOf(g);
   const gensel=`<div class="seg gensel" role="radiogroup" aria-label="Génération du booster">
       <button role="radio" data-bgen="1" aria-pressed="${g===1}" aria-checked="${g===1}">Génération 1</button>
       <button role="radio" data-bgen="2" aria-pressed="${g===2}" aria-checked="${g===2}" ${r2?"":"disabled"}>Génération 2${r2?'<span class="newtag">NOUVEAU</span>':" · bientôt"}</button></div>`;
   return `<div class="hero">
-    <button class="pack${g===2?" g2":""}" data-act="open" ${b<1?"disabled":""} aria-label="Ouvrir un booster gratuit de la génération ${g}"><span class="pt">REF<br>POCKET</span>${g===2?'<span class="pgen">GÉN. 2</span>':""}<span class="ps">4 cartes</span></button>
+    ${packFace(g,b<1)}
     <div class="bctl">
       ${gensel}
       <div class="btitle"><h1>${b>0?`${b} booster${b>1?"s":""} à ouvrir`:"Plus de booster pour l'instant"}</h1>
-      <p class="sub">${b<MAX_STOCK?`Prochain booster gratuit dans ${dur(nextBoosterMs())}.`:"Ta réserve est pleine, ouvre-les !"}</p></div>
+      <p class="sub">${free<MAX_STOCK?`Prochain booster gratuit dans ${dur(nextBoosterMs())}.`:"Ta réserve gratuite est pleine, ouvre-les !"}</p></div>
       <button class="btn foil bopen" data-act="open" ${b<1?"disabled":""}>Ouvrir un booster</button>
       <div class="row bbuy">
-        <button class="btn ghost small" data-act="buyopen" ${S.me.kheys<BOOSTER_PRICE?"disabled":""}>Acheter 1 · ${BOOSTER_PRICE} K</button>
-        <button class="btn ghost small" data-act="buypack" ${S.me.kheys<PACK_PRICE?"disabled":""}>Pack de 10 · ${PACK_PRICE} K</button>
+        <button class="btn ghost small" data-act="buyopen" ${S.me.kheys<pr?"disabled":""}>Acheter 1 · ${fmt(pr)} K</button>
+        <button class="btn ghost small" data-act="buypack" ${S.me.kheys<pp?"disabled":""}>Pack de 10 · ${fmt(pp)} K</button>
       </div>
-      <div class="bfoot"><span class="note">${owned} / ${albumSize(g)} cartes</span>
+      <div class="bfoot"><button class="linkish note" data-act="rates" aria-label="Voir les taux des boosters">${owned} / ${albumSize(g)} · Taux ⓘ</button>
       <button class="sugbar" data-act="suggest">💡 Proposer une réf${L.sugUsed?"":'<span class="newtag">NEW</span>'}</button></div>
     </div>
   </div>`;
@@ -2917,15 +3060,17 @@ const Test={
       toast("Test inconnu : "+k);
     }catch(e){console.error(e);toast("Test impossible : "+e.message);}
   },
-  pickR(r,not){const pool=(BYR[r]||[]).filter(c=>!not||!not.has(c.id));return pool.length?rnd(pool):rnd(BYR[r]||CARDS);},
+  pickR(r,not){const g=this.q.get("gen")==="2"?2:0;let pool=(BYR[r]||[]).filter(c=>!not||!not.has(c.id));
+    if(g){const p2=pool.filter(c=>c.gen===2);if(p2.length)pool=p2;}return pool.length?rnd(pool):rnd(BYR[r]||CARDS);},
   booster(){
     const best=this.card()||this.pickR(this.q.get("r")||"L");
     const used=new Set([best.id]);
-    const low=best.r==="C"?["C","C","C"]:["C","C","R"];
+    const low=(best.r==="C"?["C","C","C"]:["C","C","R"]).slice(this.q.get("three")==="1"?1:0);
     const pulls=low.map(r=>{const c=this.pickR(r,used);used.add(c.id);return {c,holo:false,isNew:Math.random()<.5};});
     pulls.push({c:best,holo:this.q.get("holo")==="1",isNew:this.q.get("new")!=="0"});
     pulls.sort((a,b)=>RORDER.indexOf(a.c.r)-RORDER.indexOf(b.c.r)||a.holo-b.holo);
-    Opening.test=true; Opening.start(pulls);
+    const g=this.q.get("gen")==="2"?2:1, sk=G2SKINS.find(x=>x.k===this.q.get("skin"))||g2Skin();
+    Opening.test=true; Opening.start(pulls,g,sk);
   },
   cardView(){
     const c=this.card()||this.pickR(this.q.get("r")||"L");
@@ -3003,7 +3148,8 @@ document.addEventListener("click",e=>{
   const a=t.dataset.act;
   if(a==="open") return openBooster(false);
   if(a==="buyopen") return openBooster(true);
-  if(a==="buypack"){if(!confirmTap(t,`Confirmer · ${PACK_PRICE} K`))return;return act(()=>sb.rpc("buy_booster_pack"),"10 boosters ajoutés à ta réserve !");}
+  if(a==="buypack"){const g=boostGen();if(!confirmTap(t,`Confirmer · ${fmt(packOf(g))} K`))return;return act(()=>sb.rpc("buy_booster_pack",g===2?{p_gen:2}:{}),`10 boosters Génération ${g} ajoutés à ta réserve !`);}
+  if(a==="rates") return openRates();
   if(a==="settings") return S.me&&openSettings();
   if(a==="newtrade") return openNewTrade();
   if(a==="autodeck"){L.deck=autoDeck();L.holo={};L.deck.forEach(id=>{if(own(id).h>0)L.holo[id]=true;});saveL();return render();}
