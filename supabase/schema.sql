@@ -340,9 +340,10 @@ drop function if exists public._drops();
 create or replace function public._drops(g int default 1) returns jsonb language plpgsql stable as $$
 declare base jsonb; a numeric[]; b numeric[]; f numeric[] := array[1,1,1];
 begin
-  base := '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5,"three":10,"price":100}'::jsonb
+  base := '{"r12":15,"e3":10,"l3":0.5,"e4":20,"l4":2.5,"pity":80,"holo":5,"price":100}'::jsonb
           || coalesce((select v from public.settings where k = 'drops'), '{}'::jsonb);
-  if coalesce(g, 1) <> 2 then return base; end if;
+  -- Les boosters à 3 cartes n'existent qu'en Génération 2
+  if coalesce(g, 1) <> 2 then return base || '{"three":0}'::jsonb; end if;
   select array[count(*) filter (where rarity = 'R'), count(*) filter (where rarity = 'E'), count(*) filter (where rarity = 'L')]::numeric[]
          || count(*)::numeric into a from public.cards where gen = 1 and active and not draft;
   select array[count(*) filter (where rarity = 'R'), count(*) filter (where rarity = 'E'), count(*) filter (where rarity = 'L')]::numeric[]
@@ -358,7 +359,7 @@ begin
       'l3',  least(30, round((base->>'l3')::numeric * f[3], 2)),
       'e4',  least(60, round((base->>'e4')::numeric * f[2], 1)),
       'l4',  least(30, round((base->>'l4')::numeric * f[3], 2)),
-      'pity', (base->>'pity')::int, 'holo', (base->>'holo')::numeric, 'three', (base->>'three')::numeric, 'price', 150, 'auto', true)
+      'pity', (base->>'pity')::int, 'holo', (base->>'holo')::numeric, 'three', 10, 'price', 150, 'auto', true)
     || coalesce((select v || '{"auto":false}'::jsonb from public.settings where k = 'drops2'), '{}'::jsonb);
 end $$;
 
@@ -378,6 +379,7 @@ begin
   if p_gen = 2 and p is null then delete from settings where k = 'drops2'; return _drops(2); end if;
   foreach key in array array['r12','e3','l3','e4','l4','holo','three'] loop
     n := (p->>key)::numeric;
+    if key = 'three' and coalesce(p_gen, 1) <> 2 then n := 0; end if;   -- 3 cartes : Gén. 2 seulement
     if n is null or n < 0 or n > 100 then raise exception 'Taux invalide pour %', key; end if;
     v := v || jsonb_build_object(key, n);
   end loop;

@@ -586,6 +586,36 @@ dialog{overflow-y:auto}
 .wo.g2 .clue .sw{width:56px;height:56px}
 .wo.g2 .clue.show>.notif{animation:notifin .6s cubic-bezier(.2,1.3,.4,1) backwards}
 @keyframes notifin{from{transform:translateY(-45vh) scale(.92);opacity:0}}
+/* Dos des cartes Gén. 2 : même style que le booster */
+.cardback.g2{background-color:#0b0820;overflow:hidden;isolation:isolate}
+.cardback.g2::after{content:none}
+.cardback.g2::before{z-index:2;background:linear-gradient(135deg,var(--b1),var(--b2))}
+.cardback.g2>*{position:relative;z-index:1}
+.cardback.g2>.pfx{position:absolute;z-index:0}
+.cardback.skin-neon{--b1:#21d4fd;--b2:#ff3bd5}.cardback.skin-vapor{--b1:#ffe46b;--b2:#ff4fa3}.cardback.skin-glitch{--b1:#ff2a6d;--b2:#05d9e8}
+.cardback.g2 span{font-size:24cqw;background:none;-webkit-background-clip:border-box;background-clip:border-box;color:#fff;filter:none}
+.cardback.skin-neon span{text-shadow:0 0 1.5cqw #21d4fd,0 0 4cqw #21d4fd,0 0 8cqw #ff3bd5}
+.cardback.skin-vapor span{text-shadow:1.2cqw 1.2cqw 0 #ff4fa3,2.4cqw 2.4cqw 0 #21d4fd}
+.cardback.skin-glitch span{text-shadow:-1.2cqw 0 #ff2a6d,1.2cqw 0 #05d9e8}
+.cardback .g2t{position:absolute;bottom:9%;left:0;right:0;text-align:center;font-family:var(--f-display);font-size:7cqw;letter-spacing:.12em;color:#fff;opacity:.85}
+.cardback.skin-neon .g2t{color:#ff7be6;text-shadow:0 0 2cqw #ff3bd5}
+.cardback.skin-vapor .g2t{color:#1b0a3d;bottom:auto;top:8%;background:#21d4fd;left:30%;right:30%;border-radius:1.5cqw;padding:.6cqw 0}
+.cardback.skin-glitch .g2t{color:#050505;background:#fff;left:32%;right:32%;padding:.6cqw 0}
+.cardback.skin-vapor .pfx::after{height:38%}
+/* Animations Gén. 2 aux couleurs du design */
+.ov.g2 .halo.myst{background:radial-gradient(circle,var(--g2a) 0%,transparent 65%)}
+.ov.g2 .halo.myst::after{background:radial-gradient(circle,var(--g2b) 0%,transparent 65%)}
+.ov.g2 .sc.await.myst .cardback{animation:auramg2 1.5s ease-in-out infinite}
+@keyframes auramg2{0%,100%{box-shadow:0 0 18px 2px var(--g2a),0 18px 40px -10px rgba(0,0,0,.7)}50%{box-shadow:0 0 46px 10px var(--g2b),0 18px 40px -10px rgba(0,0,0,.7)}}
+.ov.g2 .ring{box-shadow:0 0 30px var(--rc,#fff),0 0 60px var(--g2a)}
+.ov.g2 .ring.r2{border-color:var(--g2b)}
+.ov.g2 .flash{background:radial-gradient(circle at 50% 45%,#fff,var(--g2a) 45%,transparent 80%)}
+.ov.g2 .flash.gold{background:radial-gradient(circle at 50% 45%,#fff6c8,#ffd23f 30%,var(--g2b) 55%,transparent 80%)}
+.ov.g2 .cardinfo .rname{text-shadow:0 0 14px currentColor,-2px 0 var(--g2b),2px 0 var(--g2a)}
+.ov.g2 .cardinfo .ovrline{color:var(--g2a);opacity:.85}
+.ov.g2 .sc.gl{animation:cardglitch .5s steps(4)}
+@keyframes cardglitch{25%{translate:-6px 0;filter:hue-rotate(80deg) saturate(2)}50%{translate:5px 2px;filter:hue-rotate(-60deg)}75%{translate:-2px -1px;filter:none}}
+@media (prefers-reduced-motion:reduce){.ov.g2 .sc.gl{animation:none}}
 /* Booster à 3 cartes */
 .crise{position:absolute;z-index:8;left:16px;right:16px;margin:0 auto;top:calc(64px + env(safe-area-inset-top,0px));width:max-content;max-width:calc(100% - 32px);
   background:#ff3b6b;color:#fff;font-size:13px;white-space:nowrap;padding:7px 14px;border-radius:99px;box-shadow:0 12px 30px -10px #ff3b6b;text-align:center;animation:crise 3.2s ease forwards}
@@ -1227,7 +1257,8 @@ const Opening={
     this.gen=gen===2?2:1; this.skin=skin||g2Skin();
     pulls.forEach(p=>p.c.audio&&Sfx.preload(p.c.audio));
     this.pulls=pulls;this.cur=0;this.els=[];this.busy=false;this.done=false;
-    const ov=$("#opening");ov.className="ov"+(this.gen===2?" g2":"");ov.hidden=false;
+    const ov=$("#opening");ov.className="ov"+(this.gen===2?` g2 skin-${this.skin.k}x`:"");ov.hidden=false;
+    if(this.gen===2){ov.style.setProperty("--g2a",this.skin.c[0]);ov.style.setProperty("--g2b",this.skin.c[1]);}
     ov.innerHTML=`<canvas aria-hidden="true"></canvas><div class="flash" id="ovflash"></div>
       <div class="ov-top"><button class="btn small ghost" id="ovskip">Tout révéler</button><span class="counter" id="ovcount"></span>
       <button class="btn small ghost" id="ovmute" aria-pressed="${!!L.mute}">${L.mute?"Son coupé":"Son activé"}</button></div>
@@ -1279,7 +1310,7 @@ const Opening={
     // Première lueur identique pour tous les boosters : elle ne dit rien de la meilleure carte
     pk.style.setProperty("--lc","#fff1c9");pk.classList.add("torn");Sfx.tear();buzz(30);
     const r=pk.getBoundingClientRect();
-    if(this.gen===2) Fx.burst(r.left+r.width/2,r.top+r.height*.5,["#21d4fd","#ff3bd5","#c6ff3d","#ffffff"],120,{speed:9,g:.04,life:90});
+    if(this.gen===2) Fx.burst(r.left+r.width/2,r.top+r.height*.5,this.skin.c,120,{speed:9,g:.04,life:90});
     else Fx.burst(r.left+r.width/2,r.top+r.height*.12,["#ffd23f","#cf7dff","#58a8ff","#ffffff"],100,{speed:8,up:2,g:.15});
     this.flash();
     $("#hint").textContent="";
@@ -1297,7 +1328,7 @@ const Opening={
     this.els=this.pulls.map((p,i)=>{
       const sc=document.createElement("div");
       sc.className="sc r"+p.c.r;sc.setAttribute("role","button");sc.setAttribute("aria-label",`Carte ${i+1} sur ${this.pulls.length}`);
-      sc.innerHTML=`${p.isNew?'<span class="newtag">NOUVELLE</span>':""}<div class="flip">${cardBackHTML()}<div class="front">${cardHTML(p.c,{holo:p.holo,video:p.c.r==="L"})}</div></div>`;
+      sc.innerHTML=`${p.isNew?'<span class="newtag">NOUVELLE</span>':""}<div class="flip">${cardBackHTML(this.gen===2?this.skin.k:null)}<div class="front">${cardHTML(p.c,{holo:p.holo,video:p.c.r==="L"})}</div></div>`;
       // Vidéo des légendaires : incrustée dans la carte, en pause jusqu'à la révélation
       const v=sc.querySelector("video");if(v){v.removeAttribute("autoplay");v.autoplay=false;v.pause();}
       sc.style.transform=`translateY(75vh) scale(.55) rotate(${(i%2?1:-1)*8}deg)`;
@@ -1389,7 +1420,7 @@ const Opening={
     this.slam(sc,p);
   },
   slam(sc,p){
-    this.busy=true;
+    this.busy=true;if(this.gen===2)this.glitch(sc);
     const stack=$("#stack"),fl=sc.querySelector(".flip");
     sc.classList.remove("myst");$("#halo")?.classList.remove("myst");for(const id of ["#rays","#halo"])$(id)?.style.setProperty("--rc",`var(--r-${p.c.r})`);
     fl.style.transition="none";sc.classList.remove("await");sc.classList.add("open");void fl.offsetWidth;fl.style.transition="";
@@ -1402,11 +1433,11 @@ const Opening={
       Sfx.impact();Sfx[p.c.r]();
       const st=$("#stage");st.classList.remove("quake");void st.offsetWidth;st.classList.add("quake");
       for(const k of ["","r2"]){const ring=document.createElement("div");ring.className="ring "+k;ring.style.setProperty("--rc",`var(--r-${p.c.r})`);stack.appendChild(ring);setTimeout(()=>ring.remove(),1000);}
-      if(p.c.r==="R"){Fx.burst(x,y,RCOL.R,60,{speed:8,g:.05});$("#rays").classList.add("on");buzz(20);}
-      if(p.c.r==="E"){this.flash();Fx.burst(x,y,RCOL.E,120,{speed:11,g:.05,life:100});$("#rays").classList.add("big");buzz([30,40,60]);this.fireworks(4,RCOL.E);}
+      if(p.c.r==="R"){Fx.burst(x,y,this.pal(RCOL.R),60,{speed:8,g:.05});$("#rays").classList.add("on");buzz(20);}
+      if(p.c.r==="E"){this.flash();Fx.burst(x,y,this.pal(RCOL.E),120,{speed:11,g:.05,life:100});$("#rays").classList.add("big");buzz([30,40,60]);this.fireworks(4,RCOL.E);}
       if(p.c.r==="L"){this.flash(true);$("#rays").classList.add("big");
-        Fx.burst(x,y,RCOL.L,180,{speed:13,g:.05,life:120,size:3});
-        Fx.burst(x,r.top,["#ffd23f","#ff6fbf","#46e0ff","#b48cff","#5be49b","#ffffff"],130,{speed:11,up:5,g:.18,conf:true,size:5,life:170,drag:.985});
+        Fx.burst(x,y,this.pal(RCOL.L),180,{speed:13,g:.05,life:120,size:3});
+        Fx.burst(x,r.top,this.pal(["#ffd23f","#ff6fbf","#46e0ff","#b48cff","#5be49b","#ffffff"]),130,{speed:11,up:5,g:.18,conf:true,size:5,life:170,drag:.985});
         buzz([80,50,150]);this.fireworks(9,["#ffd23f","#fff3b0","#ff6fbf","#46e0ff","#ffffff"]);}
       if(p.holo){Sfx.holo();Fx.burst(x,y,HOLOCOL,70,{speed:8,g:.03,life:100});}
       if(p.c.r==="L"&&p.c.video) this.playVid(sc,700);
@@ -1416,23 +1447,26 @@ const Opening={
     },330);
     setTimeout(()=>{if(this.done)return;this.els.forEach((e,i)=>{if(i>this.cur)e.style.opacity="";});stack.classList.remove("slam");this.busy=false;},700);
   },
-  fireworks(n,cols){
+  // Gén. 2 : les effets prennent les couleurs du design du booster
+  pal(cols){return this.gen===2?[...cols.slice(0,2),...this.skin.c]:cols;},
+  fireworks(n,cols){cols=this.pal(cols);
     for(let i=0;i<n;i++)setTimeout(()=>{if(this.done)return;
       const x=innerWidth*(.15+Math.random()*.7),y=innerHeight*(.12+Math.random()*.33);
       Fx.burst(x,y,cols,55,{speed:5.5,g:.07,life:85,drag:.96});Sfx.crackle();},350+i*(n>5?230:320));
   },
+  glitch(sc){if(reduced)return;sc.classList.remove("gl");void sc.offsetWidth;sc.classList.add("gl");setTimeout(()=>sc.classList.remove("gl"),600);},
   flip(sc,p){
-    if(sc.classList.contains("open"))return;
+    if(sc.classList.contains("open"))return;if(this.gen===2)this.glitch(sc);
     sc.classList.add("open");Sfx.flip();
     const r=sc.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
     setTimeout(()=>{
       if(this.done)return;
       Sfx[p.c.r]();
-      if(p.c.r==="R"){Fx.burst(x,y,RCOL.R,40,{speed:6,g:.05});$("#rays").classList.add("on");buzz(15);}
-      if(p.c.r==="E"){this.flash();Fx.burst(x,y,RCOL.E,90,{speed:9,g:.06,life:90});$("#rays").classList.add("on");buzz([20,30,40]);}
+      if(p.c.r==="R"){Fx.burst(x,y,this.pal(RCOL.R),40,{speed:6,g:.05});$("#rays").classList.add("on");buzz(15);}
+      if(p.c.r==="E"){this.flash();Fx.burst(x,y,this.pal(RCOL.E),90,{speed:9,g:.06,life:90});$("#rays").classList.add("on");buzz([20,30,40]);}
       if(p.c.r==="L"){this.flash(true);$("#rays").classList.add("big");
-        Fx.burst(x,y,RCOL.L,150,{speed:12,g:.05,life:110,size:3});
-        Fx.burst(x,r.top,["#ffd23f","#ff6fbf","#46e0ff","#b48cff","#5be49b","#ffffff"],110,{speed:10,up:5,g:.18,conf:true,size:5,life:160,drag:.985});
+        Fx.burst(x,y,this.pal(RCOL.L),150,{speed:12,g:.05,life:110,size:3});
+        Fx.burst(x,r.top,this.pal(["#ffd23f","#ff6fbf","#46e0ff","#b48cff","#5be49b","#ffffff"]),110,{speed:10,up:5,g:.18,conf:true,size:5,life:160,drag:.985});
         buzz([60,40,120]);}
       if(p.holo){Sfx.holo();Fx.burst(x,y,HOLOCOL,60,{speed:7,g:.03,life:100});}
       if(p.c.r==="L"&&p.c.video) this.playVid(sc,0);
@@ -1799,10 +1833,10 @@ addEventListener("resize",fitBars);
   if(window.visualViewport) visualViewport.addEventListener("resize",()=>{ if(visualViewport.height>=innerHeight-1) nudge(); });
 })();
 /* Boosters de la Génération 2 : 3 designs qui tournent d'un booster à l'autre */
-const G2SKINS=[{k:"neon",n:"Néon"},{k:"vapor",n:"Vapor"},{k:"glitch",n:"Glitch"}];
+const G2SKINS=[{k:"neon",n:"Néon",c:["#21d4fd","#ff3bd5","#ffffff"]},{k:"vapor",n:"Vapor",c:["#ff4fa3","#ffe46b","#21d4fd","#ffffff"]},{k:"glitch",n:"Glitch",c:["#ff2a6d","#05d9e8","#c6ff3d","#ffffff"]}];
 function g2Skin(){return G2SKINS[(L.g2skin|0)%G2SKINS.length];}
 function packArt(g,sk){
-  return g===2?`<span class="pfx" aria-hidden="true"></span><span class="pt" data-t="REF POCKET">REF<br>POCKET</span><span class="pgen">GÉN. 2 · ${sk.n.toUpperCase()}</span><span class="ps">4 cartes</span>`
+  return g===2?`<span class="pfx" aria-hidden="true"></span><span class="pt" data-t="REF POCKET">REF<br>POCKET</span><span class="pgen">GÉN. 2</span><span class="ps">4 cartes</span>`
               :`<span class="pt">REF<br>POCKET</span><span class="ps">4 cartes</span>`;
 }
 function packFace(g,off){
@@ -1823,7 +1857,7 @@ function openRates(){
     </tbody></table>
     <ul class="note">
       <li>Holo : ${pc(d.holo)} par carte.</li>
-      <li>Booster à 3 cartes (la 1<sup>re</sup> manque) : ${pc(d.three)}.</li>
+      ${+d.three?`<li>Booster à 3 cartes (la 1<sup>re</sup> manque) : ${pc(d.three)}.</li>`:""}
       <li>Légendaire garantie au plus tard au ${d.pity}<sup>e</sup> booster sans légendaire.</li>
       <li>Dans cette génération : ${cnt("C")} communes, ${cnt("R")} rares, ${cnt("E")} épiques, ${cnt("L")} légendaires.${g===2&&d.auto?" Les taux sont ajustés au nombre de cartes de chaque rareté.":""}</li>
     </ul>
@@ -3065,7 +3099,7 @@ const Test={
   booster(){
     const best=this.card()||this.pickR(this.q.get("r")||"L");
     const used=new Set([best.id]);
-    const low=(best.r==="C"?["C","C","C"]:["C","C","R"]).slice(this.q.get("three")==="1"?1:0);
+    const low=(best.r==="C"?["C","C","C"]:["C","C","R"]).slice(this.q.get("three")==="1"&&this.q.get("gen")==="2"?1:0);
     const pulls=low.map(r=>{const c=this.pickR(r,used);used.add(c.id);return {c,holo:false,isNew:Math.random()<.5};});
     pulls.push({c:best,holo:this.q.get("holo")==="1",isNew:this.q.get("new")!=="0"});
     pulls.sort((a,b)=>RORDER.indexOf(a.c.r)-RORDER.indexOf(b.c.r)||a.holo-b.holo);

@@ -766,7 +766,7 @@ async function openDrops(g){
     <p class="note">Les cartes 1 et 2 sont communes ou rares ; les cartes 3 et 4 peuvent être épiques ou légendaires. Valeurs en %.</p>
     <div class="drgrid">
       ${f("price","Prix d'un booster (K) · pack de 10 = 9 × ce prix","10",100000)}
-      ${f("three","Chance d'un booster à 3 cartes","1",100)}
+      ${g===2?f("three","Chance d'un booster à 3 cartes","1",100):""}
       ${f("r12","Cartes 1 et 2 : rare","1",100)}
       <span></span>
       ${f("e3","Carte 3 : épique","0.5",100)}
@@ -780,12 +780,12 @@ async function openDrops(g){
     <p class="note" id="drmsg" role="status"></p>
     <div class="row" style="justify-content:space-between">${g===2?`<button type="button" class="btn ghost" data-drauto ${auto?"disabled":""}>Revenir au calcul automatique</button>`:`<button type="button" class="btn ghost" data-drreset>Valeurs conseillées</button>`}
       <div class="row"><button type="button" class="btn ghost" data-drclose>Fermer</button><button type="submit" class="btn foil">Enregistrer</button></div></div></form>`;
-  const read=()=>{const o={};d.querySelectorAll("[data-dr]").forEach(i=>o[i.dataset.dr]=parseFloat(String(i.value).replace(",","."))||0);return o;};
+  const read=()=>{const o={three:0};d.querySelectorAll("[data-dr]").forEach(i=>o[i.dataset.dr]=parseFloat(String(i.value).replace(",","."))||0);return o;};
   const sum=()=>{const o=read(),t=o.three/100,pl=1-(1-o.l3/100)*(1-o.l4/100),pe=1-(1-o.e3/100)*(1-o.e4/100);
     const oneIn=x=>x>0?`1 booster sur ${Math.round(1/x)}`:"jamais";
     const perL=cnt("L")?(o.l3+o.l4)/100/cnt("L"):0;
     $("#drsum").innerHTML=`<b>Par booster :</b> au moins une légendaire ${(pl*100).toFixed(1)} % (${oneIn(pl)}) · au moins une épique ${(pe*100).toFixed(1)} % (${oneIn(pe)})<br>
-      <b>Sur 100 boosters :</b> environ ${(o.l3+o.l4).toFixed(1)} légendaires, ${(o.e3+o.e4).toFixed(0)} épiques, ${((4-t)*o.holo).toFixed(0)} holos, ${(100*t).toFixed(0)} boosters à 3 cartes<br>
+      <b>Sur 100 boosters :</b> environ ${(o.l3+o.l4).toFixed(1)} légendaires, ${(o.e3+o.e4).toFixed(0)} épiques, ${((4-t)*o.holo).toFixed(0)} holos, ${t?`${(100*t).toFixed(0)} boosters à 3 cartes`:"aucun booster à 3 cartes"}<br>
       ${perL?`<b>Une légendaire précise</b> sort en moyenne 1 fois tous les ${Math.round(1/perL)} boosters.`:""}`;};
   d.querySelectorAll("[data-dr]").forEach(i=>i.oninput=sum); sum();
   d.querySelectorAll("[data-drgen]").forEach(b=>b.onclick=()=>openDrops(+b.dataset.drgen));
@@ -1152,7 +1152,7 @@ const TESTS=[
   {k:"booster",t:"Ouverture de booster",d:"Le paquet, la lueur mystère, l'animation des épiques/légendaires, le son et la vidéo. Choisis une carte précise pour tester son son ou sa vidéo (incrustée dans la carte).",f:`
     <div class="field"><label>Génération du booster</label><select name="gen"><option value="1">Génération 1</option><option value="2">Génération 2 (déverrouillage + notifications)</option></select></div>
     <div class="field"><label>Design Gén. 2</label><select name="skin"><option value="neon">Néon</option><option value="vapor">Vapor</option><option value="glitch">Glitch</option></select></div>
-    <label class="check"><input type="checkbox" name="three"> Booster à 3 cartes</label>
+    <label class="check"><input type="checkbox" name="three"> Booster à 3 cartes (Gén. 2)</label>
     <div class="field"><label>Meilleure carte (rareté)</label><select name="r"><option value="L">Légendaire</option><option value="E">Épique</option><option value="R">Rare</option><option value="C">Commune</option></select></div>
     <div class="field"><label>Ou une carte précise</label><select name="card">${cardOpts()}</select></div>
     <label class="check"><input type="checkbox" name="holo"> En holo</label><label class="check"><input type="checkbox" name="new" checked> Marquée « nouvelle »</label>`},

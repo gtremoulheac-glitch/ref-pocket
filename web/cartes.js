@@ -111,4 +111,5 @@ function cardHTML(c,opt={}){
 }
 
 // Dos de carte Ref Pocket
-function cardBackHTML(){return '<div class="cardback" aria-hidden="true"><span>RP</span></div>';}
+// Dos de carte ; sk = design de la Gén. 2 (neon, vapor, glitch) pour reprendre le style du booster
+function cardBackHTML(sk){return sk?`<div class="cardback g2 skin-${sk}" aria-hidden="true"><i class="pfx"></i><span>RP</span><b class="g2t">GÉN. 2</b></div>`:'<div class="cardback" aria-hidden="true"><span>RP</span></div>';}
