@@ -2380,13 +2380,23 @@ function toB(r,prev){
 }
 const Online={
   id:null,row:null,timer:null,pending:false,notified:false,
-  track(id){if(this.id===id&&!this.watch)return;this.stop();this.watch=false;this.id=id;this.row=null;this.played=0;this.notified=false;this.timer=setInterval(()=>this.poll(),1500);this.poll();},
-  stop(){clearInterval(this.timer);this.timer=null;},
+  track(id){if(this.id===id&&!this.watch)return;this.stop();this.watch=false;this.id=id;this.row=null;this.played=0;this.notified=false;this.loop();},
+  stop(){clearTimeout(this.timer);this.timer=null;},
+  // Rythme adaptatif : vite quand on attend le coup de l'adversaire, lentement quand c'est à nous de jouer
+  // ou que l'appli est en arrière-plan (moins de requêtes = moins de logs Supabase)
+  delay(){const r=this.row;
+    if(document.visibilityState!=="visible") return 15000;
+    if(!r||r.status==="waiting"||r.status==="invited") return 4000;
+    if(r.status==="finished") return 3000;
+    if(this.watch) return 2500;
+    const mine=r.state&&r.state.turn===(r.player_a===S.me.id?0:1);
+    return mine?6000:2000;},
+  loop(){this.stop();this.timer=setTimeout(async()=>{if(!this.timer)return;await this.poll();if(this.timer)this.loop();},this.row?this.delay():0);},
   clear(){this.stop();this.id=null;this.row=null;this.watch=false;if(B&&B.online)B=null;},
   // Regarder le duel d'un ami (spectateur)
   watchDuel(id){if(Online.row&&Online.row.status==="active"&&!this.watch){toast("Termine d'abord ton duel.");return;}
     this.stop();this.watch=true;this.id=id;this.row=null;this.played=0;this.notified=false;B=null;tab="duel";
-    this.timer=setInterval(()=>this.poll(),1500);this.poll();render();scrollTo(0,0);},
+    this.loop();render();scrollTo(0,0);},
   async poll(){
     if(!this.id||this.pending) return; this.pending=true;
     const id=this.id,watch=this.watch;
@@ -2394,7 +2404,7 @@ const Online={
       if(r.error){if(watch&&this.id===id){toast("Ce duel est terminé.");this.clear();render();}throw r.error;}
       if(this.id!==id||this.watch!==watch) return;
       await this.set(r.data);
-      if(r.data&&["active","finished"].includes(r.data.status)) Voice.check(id);}
+      if(r.data&&["active","finished"].includes(r.data.status)&&Date.now()-(this.vt||0)>3500){this.vt=Date.now();Voice.check(id);}}
     catch(e){} finally{this.pending=false;}
   },
   async set(row){
@@ -2411,6 +2421,8 @@ const Online={
       if(B) B.anim=false;
     }
     this.row=row;
+    // le tour a changé : on recale le rythme de suivi tout de suite (sinon on pourrait attendre 6 s)
+    if(this.timer&&prev&&(prev.move_no!==row.move_no||prev.status!==row.status)) this.loop();
     const pz=row.state&&row.state.prize, waitPrize=row.status==="finished"&&pz&&!pz.got;
     if(["finished","cancelled"].includes(row.status)&&!waitPrize) this.stop();
     if(!this.watch&&prev&&prev.status==="finished"&&pz&&pz.got&&!(prev.state.prize&&prev.state.prize.got)){
@@ -3234,26 +3246,27 @@ document.addEventListener("click",e=>{
   }
 });
 
-/* Rafraîchissement : toutes les 30 s quand l'appli est visible */
+/* Rafraîchissement complet : toutes les 60 s quand l'appli est visible (chaque requête est comptée
+   dans les logs Supabase ; le jeu se resynchronise aussi après chaque action et au retour sur l'appli) */
 setInterval(()=>{
-  if(!S.me) return;
-  renderTop();
-  if(document.visibilityState!=="visible"||busyAct||!$("#opening").hidden) return;
+  if(!S.me||document.visibilityState!=="visible"||busyAct||!$("#opening").hidden) return;
   sync().then(()=>{ if(!$("#dlg").open&&!B&&!document.activeElement?.matches("input")&&$("#opening").hidden) render(); else renderTop(); }).catch(()=>{});
-},15000);
-setInterval(()=>{ if(S.me) renderTop(); },15000);
-// Vérifie souvent les défis reçus et les duels qui démarrent
+},60000);
+setInterval(()=>{ if(S.me) renderTop(); },15000);   // compteurs (sans requête)
+// Défis reçus et duels qui démarrent : toutes les 10 s ; duels des amis : toutes les 20 s, onglet Duel seulement
+let liveTick=0;
 setInterval(async()=>{
-  if(!S.me||document.visibilityState!=="visible"||busyAct) return;
+  if(!S.me||document.visibilityState!=="visible"||busyAct||Online.timer) return;   // pendant un duel, le suivi du duel suffit
   const r=await sb.from("duels").select("id,player_a,player_b,mode,status,created_at,updated_at").in("status",["waiting","invited","active"]);
   if(r.error) return;
   const before=new Set(incomingInvites().map(d=>d.id));
   S.duels=r.data; reconcileDuels();
   const fresh=incomingInvites().filter(d=>!before.has(d.id));
   if(fresh.length){toast(`${pseudoOf(fresh[0].player_a)} te défie en duel !`);buzz([30,40,30]);if(tab==="duel"&&!B)render();}
-  if((tab==="duel"||tab==="trades")&&!B&&!$("#dlg").open){const before=JSON.stringify(S.live||[]);await loadLive();if(JSON.stringify(S.live)!==before&&!document.activeElement?.matches("input"))render();}
+  if(tab==="duel"&&!B&&!$("#dlg").open&&(liveTick++%2===0)){const before=JSON.stringify(S.live||[]);await loadLive();if(JSON.stringify(S.live)!==before&&!document.activeElement?.matches("input"))render();}
   renderTop();
-},5000);
+},10000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&Online.timer) Online.poll().then(()=>{if(Online.timer)Online.loop();}); });
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&S.me&&!busyAct) sync().then(()=>{ if(!$("#dlg").open&&!B&&$("#opening").hidden) render(); else renderTop(); }).catch(()=>{}); });
 
 
