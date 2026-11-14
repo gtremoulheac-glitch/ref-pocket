@@ -402,6 +402,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .gfs .cnt{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:99px;background:#ff3b6b;color:#fff;font-size:11px;padding:0 5px;margin-left:4px}
 .adminwrap .grid .tile{display:grid;gap:6px}
 .sugs{display:grid;gap:10px}
+.slotrefs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.slotrefs>div{display:grid;gap:3px;justify-items:center;text-align:center}
 .rank{margin:0;padding:0;list-style:none;display:grid;gap:4px}
 .rank li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
 .sug{display:grid;gap:6px;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--tc);border-radius:12px;padding:12px 14px}
@@ -530,7 +532,7 @@ function renderList(){
     ${gfs}
     <div class="row" style="justify-content:space-between;align-items:flex-end">
       ${head}
-      <div class="row"><button class="btn ghost" data-a="tests">🧪 Tests</button><button class="btn ghost" data-a="drops">🎲 Taux des boosters</button><button class="btn ghost" data-a="players">Joueurs</button><button class="btn ghost" data-a="admins">Admins</button><button class="btn ghost" data-a="types">Types (${TYPE_ROWS.length})</button><button class="btn foil" data-a="new">Nouvelle carte</button></div>
+      <div class="row"><button class="btn ghost" data-a="tests">🧪 Tests</button><button class="btn ghost" data-a="drops">🎲 Taux des boosters</button><button class="btn ghost" data-a="slot">🎰 Machine</button><button class="btn ghost" data-a="players">Joueurs</button><button class="btn ghost" data-a="admins">Admins</button><button class="btn ghost" data-a="types">Types (${TYPE_ROWS.length})</button><button class="btn foil" data-a="new">Nouvelle carte</button></div>
     </div>
     ${prepTools}
     <p class="note dzhint">Astuce : glisse une image sur une carte pour changer son image, ou dans le vide pour créer une nouvelle carte.</p>
@@ -797,6 +799,25 @@ async function openDrops(g){
     const x=await sb.rpc("set_drops",{p:read(),p_gen:g});
     if(x.error){m.textContent=errMsg(x.error);return;}
     m.textContent="";toast(`Taux de la Génération ${g} enregistrés : ils s'appliquent dès le prochain booster.`);d.close();};
+  if(!d.open) d.showModal();
+}
+
+/* ---------- Machine à sous : réfs de la semaine ---------- */
+async function openSlotAdmin(){
+  const d=$("#tdlg"), r=await sb.rpc("slot_info");
+  if(r.error){toast("Relance d'abord schema.sql dans Supabase : "+errMsg(r.error));return;}
+  const I=r.data, roles=["Commune","Commune","Commune","Commune","Rare","Rare","Rare","Épique","Épique","Légendaire","Joker"];
+  d.innerHTML=`<div class="dlg"><h2>🎰 Machine « Fortune Khey »</h2>
+    <p class="note">${I.auto?"Les réfs sont tirées <b>automatiquement chaque semaine</b> parmi les cartes publiées des deux générations.":"Sélection <b>fixée</b> : elle reste jusqu'à ce que tu repasses en automatique."}
+      Cagnotte GRAND actuelle : <b>${(I.pool||0).toLocaleString("fr-FR")} K</b>.</p>
+    <div class="slotrefs">${(I.symbols||[]).map((id,i)=>{const c=CARDS.find(x=>x.id===id);return `<div>${c?cardHTML(c):"?"}<span class="note">${roles[i]}</span></div>`;}).join("")}</div>
+    <p class="note" id="slmsg" role="status"></p>
+    <div class="row" style="justify-content:space-between"><button type="button" class="btn ghost" data-sl="auto" ${I.auto?"disabled":""}>Tirage auto chaque semaine</button>
+      <div class="row"><button type="button" class="btn ghost" data-sl="close">Fermer</button><button type="button" class="btn foil" data-sl="reroll">Nouvelle sélection au hasard</button></div></div></div>`;
+  d.querySelectorAll("[data-sl]").forEach(b=>b.onclick=async()=>{const k=b.dataset.sl;if(k==="close")return d.close();
+    b.disabled=true;const x=await sb.rpc("slot_reroll",{p_auto:k==="auto"});
+    if(x.error){$("#slmsg").textContent=errMsg(x.error);b.disabled=false;return;}
+    toast(k==="auto"?"Machine : retour au tirage automatique":"Machine : nouvelles réfs !");openSlotAdmin();});
   if(!d.open) d.showModal();
 }
 
@@ -1203,6 +1224,7 @@ document.addEventListener("click",e=>{
   if(a==="admins") return openAdmins();
   if(a==="players") return openPlayers();
   if(a==="drops") return openDrops();
+  if(a==="slot") return openSlotAdmin();
   if(a==="tests"){renderTests();scrollTo(0,0);return;}
   if(b.dataset.tryk){const q=new URLSearchParams({test:b.dataset.tryk,card:ED.c.id});if(ED.holo)q.set("holo","1");window.open("./?"+q,"_blank");return;}
   if(a==="delete") return deleteCard(b);
