@@ -1949,9 +1949,9 @@ end $$;
 -- 6 pièces ou plus = Pluie de Kheys (3 relances, chaque nouvelle pièce remet à 3).
 -- Chaque appareil photo touché abîme les 3 appareils au-dessus de la machine (3 coups chacun) :
 -- les 3 cassés = roue de Nils (gain ou tours gratuits). 3+ boosters = boosters offerts, 5 = une carte.
--- Jackpots : Mini 20×, Minor 50×, Major 250× la mise ; Grand = cagnotte partagée
+-- Jackpots : Mini 50×, Minor 150×, Major 500× la mise ; Grand = cagnotte partagée
 -- (3 % de toutes les mises), gagnée en entier à mise ×10, 50 % à ×5, 10 % à ×1.
--- Retour simulé : ~88 % hors boosters et cagnotte (~92 % au total). 500 tours payants par jour.
+-- Retour simulé : ~105 % hors boosters et cagnotte (les joueurs sont gagnants sur la durée). 500 tours payants par jour.
 -- ---------------------------------------------------------------------
 alter table public.profiles add column if not exists slot jsonb not null default '{}'::jsonb;
 
@@ -2011,9 +2011,9 @@ end $$;
 create or replace function public._slot_core(p_bet int) returns jsonb language plpgsql volatile as $$
 declare
   wts numeric[] := array[20,20,20,20,20,20, 6,6,6,6, 3,3,3, 2.2, 9, 22, 1.2, 1.5];
-  pay3 int[] := array[1,1,1,1,1,1, 1,1,1,1, 2,2,2, 4, 5];
-  pay4 int[] := array[1,1,1,1,1,1, 2,2,2,2, 5,5,5, 10, 15];
-  pay5 int[] := array[2,2,2,2,2,2, 4,4,4,4, 12,12,12, 30, 60];
+  pay3 int[] := array[1,1,1,1,1,1, 1,1,1,1, 2,2,2, 5, 6];
+  pay4 int[] := array[1,1,1,1,1,1, 2,2,2,2, 6,6,6, 12, 20];
+  pay5 int[] := array[2,2,2,2,2,2, 5,5,5,5, 15,15,15, 40, 80];
   -- valeurs des pièces (× mise) ; 101..104 = Mini, Minor, Major, Grand
   cv int[] := array[1,2,3,5,8,10,101,102,103,104];
   cw numeric[] := array[40,26,15,8,4,2.5,3,1.2,0.25,0.05];
@@ -2053,7 +2053,7 @@ begin
     while resp > 0 and filled < 15 loop
       st := '[]';
       for i in 0..14 loop
-        if not coins ? i::text and random() < 0.04 then
+        if not coins ? i::text and random() < 0.036 then
           v := cv[public._wpick(cw)]; coins := coins || jsonb_build_object(i::text, v); st := st || jsonb_build_object('p', i, 'v', v); filled := filled + 1;
         end if;
       end loop;
@@ -2063,7 +2063,7 @@ begin
     isfull := filled >= 15;
     for v in select value::int from jsonb_each_text(coins) loop
       if v < 100 then tot := tot + v * p_bet;
-      elsif v < 104 then tot := tot + (case v when 101 then 20 when 102 then 50 else 250 end) * p_bet;
+      elsif v < 104 then tot := tot + (case v when 101 then 50 when 102 then 150 else 500 end) * p_bet;
                          jps := jps || to_jsonb(case v when 101 then 'mini' when 102 then 'minor' else 'major' end);
       else jps := jps || to_jsonb('grand'::text); end if;
     end loop;
@@ -2075,8 +2075,8 @@ end $$;
 
 -- Roue de Nils : 8 cases (gain = × mise, tours = tours gratuits)
 create or replace function public._slot_wheel() returns jsonb language sql immutable as $$
-  select '[{"t":"w","v":8,"p":15},{"t":"f","v":6,"p":13},{"t":"w","v":20,"p":18},{"t":"f","v":10,"p":14},
-           {"t":"w","v":8,"p":15},{"t":"f","v":6,"p":13},{"t":"w","v":60,"p":6},{"t":"f","v":15,"p":6}]'::jsonb $$;
+  select '[{"t":"w","v":10,"p":15},{"t":"f","v":8,"p":13},{"t":"w","v":25,"p":18},{"t":"f","v":12,"p":14},
+           {"t":"w","v":10,"p":15},{"t":"f","v":8,"p":13},{"t":"w","v":100,"p":6},{"t":"f","v":20,"p":6}]'::jsonb $$;
 
 create or replace function public.slot_info() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
@@ -2173,6 +2173,45 @@ begin
     'pool', (select floor(amount) from slot_pool where id = 1));
 end $$;
 
+-- Admin : simuler N tours (sans rien enregistrer, sans toucher aux Kheys) pour vérifier les réglages.
+-- On l'appelle par paquets (30 000 tours max par appel) et l'admin additionne les résultats.
+create or replace function public.slot_simulate(p_n int default 10000, p_bet int default 1) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare o jsonb; paid int := 0; free int := 0; cam int := 0; w int; ret numeric := 0; lret numeric := 0; bret numeric := 0; wret numeric := 0;
+  hits int := 0; nbon int := 0; nw int := 0; nfree int := 0; nb int := 0; ncard int := 0; el int := 0; seg jsonb; wi int; best int := 0;
+  jm int := 0; jn int := 0; jj int := 0; jg int := 0; b0 int := 0; b1 int := 0; b2 int := 0; b3 int := 0; b4 int := 0; b5 int := 0; x numeric; bet int := coalesce(p_bet, 1);
+begin
+  if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
+  if bet not in (1, 5, 10) then bet := 1; end if;
+  p_n := least(greatest(coalesce(p_n, 10000), 100), 30000);
+  while paid < p_n loop
+    if free > 0 then free := free - 1; else paid := paid + 1; end if;
+    o := _slot_core(bet); w := (o->>'lw')::int; lret := lret + w;
+    if exists (select 1 from jsonb_array_elements(o->'lines') l where (l->>'s')::int >= 10) then el := el + 1; end if;
+    if jsonb_typeof(o->'bonus') = 'object' then
+      nbon := nbon + 1; w := w + (o#>>'{bonus,total}')::int; bret := bret + (o#>>'{bonus,total}')::int;
+      jm := jm + (select count(*) from jsonb_array_elements_text(o#>'{bonus,jackpots}') j where j = 'mini');
+      jn := jn + (select count(*) from jsonb_array_elements_text(o#>'{bonus,jackpots}') j where j = 'minor');
+      jj := jj + (select count(*) from jsonb_array_elements_text(o#>'{bonus,jackpots}') j where j = 'major');
+      if (o#>'{bonus,jackpots}') ? 'grand' then jg := jg + 1; end if;
+    end if;
+    cam := cam + (o->>'cams')::int;
+    if cam >= 9 then
+      cam := cam - 9; nw := nw + 1;
+      wi := _wpick(array(select (y->>'p')::numeric from jsonb_array_elements(_slot_wheel()) y)) - 1; seg := _slot_wheel()->wi;
+      if seg->>'t' = 'w' then w := w + (seg->>'v')::int * bet; wret := wret + (seg->>'v')::int * bet; else free := free + (seg->>'v')::int; nfree := nfree + (seg->>'v')::int; end if;
+    end if;
+    if (o->>'boosters')::int >= 5 then ncard := ncard + 1; elsif (o->>'boosters')::int >= 3 then nb := nb + 1; end if;
+    ret := ret + w; best := greatest(best, w);
+    if w > 0 then hits := hits + 1; end if;
+    x := w::numeric / bet;
+    if x = 0 then b0 := b0 + 1; elsif x < 2 then b1 := b1 + 1; elsif x < 5 then b2 := b2 + 1; elsif x < 20 then b3 := b3 + 1; elsif x < 100 then b4 := b4 + 1; else b5 := b5 + 1; end if;
+  end loop;
+  return jsonb_build_object('paid', paid, 'bet', bet, 'staked', paid * bet, 'ret', ret, 'lines', lret, 'pluie', bret, 'wheel', wret,
+    'hits', hits, 'pluies', nbon, 'wheels', nw, 'freespins', nfree, 'boosters', nb, 'cards', ncard, 'elstar', el, 'best', best,
+    'mini', jm, 'minor', jn, 'major', jj, 'grand', jg, 'buckets', jsonb_build_array(b0, b1, b2, b3, b4, b5));
+end $$;
+
 -- Admin : nouvelle sélection aléatoire de réfs, ou retour au tirage automatique de la semaine
 create or replace function public.slot_reroll(p_auto boolean default false) returns text[]
 language plpgsql security definer set search_path = public as $$
@@ -2216,7 +2255,7 @@ revoke all on function public.create_profile(text), public.my_profile(), public.
   public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
   public.refuse_suggestion(bigint), public.publish_cards(text[]),
   public.suggest_ranking(), public.close_suggest_contest(),
-  public.slot_info(), public.slot_spin(int), public.slot_reroll(boolean)
+  public.slot_info(), public.slot_spin(int), public.slot_reroll(boolean), public.slot_simulate(int,int)
   from public, anon;
 grant execute on function public.create_profile(text), public.my_profile(), public.open_booster(boolean,int),
   public.discard_card(bigint), public.list_card(bigint,int), public.cancel_listing(bigint), public.buy_listing(bigint),
@@ -2231,5 +2270,5 @@ grant execute on function public.create_profile(text), public.my_profile(), publ
   public.suggest_ref(text,text,text,text), public.cancel_suggestion(bigint), public.accept_suggestion(bigint),
   public.refuse_suggestion(bigint), public.publish_cards(text[]),
   public.suggest_ranking(), public.close_suggest_contest(),
-  public.slot_info(), public.slot_spin(int), public.slot_reroll(boolean)
+  public.slot_info(), public.slot_spin(int), public.slot_reroll(boolean), public.slot_simulate(int,int)
   to authenticated;

@@ -402,6 +402,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .gfs .cnt{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:99px;background:#ff3b6b;color:#fff;font-size:11px;padding:0 5px;margin-left:4px}
 .adminwrap .grid .tile{display:grid;gap:6px}
 .sugs{display:grid;gap:10px}
+.simbar{height:8px;border-radius:99px;background:var(--panel-2);overflow:hidden}.simbar i{display:block;height:100%;background:var(--foil,#ffd23f)}
+.simtbl{width:100%;border-collapse:collapse;font-size:13px}.simtbl th{text-align:left;font-weight:700;padding:5px 8px 5px 0;white-space:nowrap;vertical-align:top}.simtbl td{padding:5px 0;border-bottom:1px solid var(--line)}
 .slotrefs{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
 .slotrefs>div{display:grid;gap:3px;justify-items:center;text-align:center}
 .rank{margin:0;padding:0;list-style:none;display:grid;gap:4px}
@@ -811,14 +813,45 @@ async function openSlotAdmin(){
     <p class="note">${I.auto?"Les 15 réfs sont tirées <b>automatiquement toutes les 6 heures</b> parmi les cartes publiées des deux générations.":"Sélection <b>fixée</b> : elle reste jusqu'à ce que tu repasses en automatique."}
       Cagnotte GRAND actuelle : <b>${(I.pool||0).toLocaleString("fr-FR")} K</b>.</p>
     <div class="slotrefs">${(I.symbols||[]).map((id,i)=>{const c=CARDS.find(x=>x.id===id);return `<div>${c?cardHTML(c):"?"}<span class="note">${roles[i]}</span></div>`;}).join("")}</div>
+    <section class="edsec"><h2>Simulation</h2><p class="note">Fait tourner la vraie machine du serveur sans rien enregistrer, pour vérifier les réglages.</p>
+      <div class="row"><select id="simn"><option value="30000">30 000 tours</option><option value="100000" selected>100 000 tours</option><option value="300000">300 000 tours</option></select>
+        <select id="simb"><option value="1">mise 1 K</option><option value="5">mise 5 K</option><option value="10" selected>mise 10 K</option></select>
+        <button type="button" class="btn" data-sl="sim">▶ Simuler</button><a class="btn ghost" href="index.html?test=slot&case=pluie" target="_blank" rel="noopener">🧪 Tester les animations</a></div>
+      <div id="simout"></div></section>
     <p class="note" id="slmsg" role="status"></p>
     <div class="row" style="justify-content:space-between"><button type="button" class="btn ghost" data-sl="auto" ${I.auto?"disabled":""}>Tirage auto toutes les 6 h</button>
       <div class="row"><button type="button" class="btn ghost" data-sl="close">Fermer</button><button type="button" class="btn foil" data-sl="reroll">Nouvelle sélection au hasard</button></div></div></div>`;
   d.querySelectorAll("[data-sl]").forEach(b=>b.onclick=async()=>{const k=b.dataset.sl;if(k==="close")return d.close();
+    if(k==="sim") return runSlotSim(b);
     b.disabled=true;const x=await sb.rpc("slot_reroll",{p_auto:k==="auto"});
     if(x.error){$("#slmsg").textContent=errMsg(x.error);b.disabled=false;return;}
     toast(k==="auto"?"Machine : retour au tirage automatique":"Machine : nouvelles réfs !");openSlotAdmin();});
   if(!d.open) d.showModal();
+}
+
+// Simulation par paquets de 30 000 tours (limite de temps des requêtes Supabase), résultats additionnés
+async function runSlotSim(btn){
+  const N=+$("#simn").value, bet=+$("#simb").value, out=$("#simout"); btn.disabled=true;
+  const T={paid:0,staked:0,ret:0,lines:0,pluie:0,wheel:0,hits:0,pluies:0,wheels:0,freespins:0,boosters:0,cards:0,elstar:0,best:0,mini:0,minor:0,major:0,grand:0,buckets:[0,0,0,0,0,0]};
+  for(let done=0;done<N;){
+    const n=Math.min(30000,N-done);
+    out.innerHTML=`<p class="note">Simulation… ${Math.round(done/N*100)} %</p><div class="simbar"><i style="width:${done/N*100}%"></i></div>`;
+    const r=await sb.rpc("slot_simulate",{p_n:n,p_bet:bet});
+    if(r.error){out.innerHTML=`<p class="note">${esc(errMsg(r.error))}</p>`;btn.disabled=false;return;}
+    for(const k in T){if(k==="buckets")r.data.buckets.forEach((v,i)=>T.buckets[i]+=v);else if(k==="best")T.best=Math.max(T.best,r.data.best);else T[k]+=r.data[k];}
+    done+=n;
+  }
+  const P=T.paid, pct=x=>(x/T.staked*100).toFixed(1)+" %", every=x=>x?`1 tour sur ${Math.round(P/x).toLocaleString("fr-FR")}`:"jamais";
+  const bk=["rien","< 2×","2 à 5×","5 à 20×","20 à 100×","100× et +"];
+  out.innerHTML=`<table class="simtbl"><tbody>
+    <tr><th>Retour aux joueurs</th><td><b>${pct(T.ret)}</b> <span class="note">(${T.ret>=T.staked?"les joueurs gagnent":"la machine gagne"} ${Math.abs(T.ret-T.staked).toLocaleString("fr-FR")} K sur ${T.staked.toLocaleString("fr-FR")} K misés)</span></td></tr>
+    <tr><th>dont réfs alignées</th><td>${pct(T.lines)}</td></tr><tr><th>dont Pluie de Kheys</th><td>${pct(T.pluie)}</td></tr><tr><th>dont roue</th><td>${pct(T.wheel)}</td></tr>
+    <tr><th>Tours gagnants</th><td>${every(T.hits)}</td></tr><tr><th>Épique/légendaire alignée</th><td>${every(T.elstar)}</td></tr>
+    <tr><th>Pluie de Kheys</th><td>${every(T.pluies)}</td></tr><tr><th>Roue de Nils</th><td>${every(T.wheels)} · ${T.freespins.toLocaleString("fr-FR")} tours gratuits</td></tr>
+    <tr><th>MINI / MINOR / MAJOR</th><td>${every(T.mini)} · ${every(T.minor)} · ${every(T.major)}</td></tr><tr><th>GRAND</th><td>${every(T.grand)} <span class="note">(hors simulation : payé par la cagnotte)</span></td></tr>
+    <tr><th>Booster offert / carte</th><td>${every(T.boosters)} · ${every(T.cards)}</td></tr><tr><th>Plus gros gain</th><td>${T.best.toLocaleString("fr-FR")} K (${Math.round(T.best/bet)}× la mise)</td></tr>
+    <tr><th>Répartition des tours</th><td>${T.buckets.map((v,i)=>`${bk[i]} : ${(v/P*100).toFixed(1)} %`).join(" · ")}</td></tr></tbody></table>`;
+  btn.disabled=false;
 }
 
 /* ---------- Joueurs : liste et suppression ---------- */
@@ -1170,6 +1203,8 @@ function cardOpts(filter,none="Au hasard"){
     return g.length?`<optgroup label="${RARITIES[r].name}s">${g.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.video?" 🎬":c.audio?" 🔊":""}</option>`).join("")}</optgroup>`:"";}).join("")}`;
 }
 const TESTS=[
+  {k:"slot",t:"Machine à sous",d:"Joue un scénario précis à chaque tour, sans dépenser de Kheys et sans rien enregistrer : jackpots, pluie de Kheys, roue, boosters, carte, gros gain, épique ou légendaire alignée (avec son son).",f:`
+    <div class="field"><label>Scénario</label><select name="case"><option value="pluie">Pluie de Kheys</option><option value="mini">Jackpot MINI</option><option value="minor">Jackpot MINOR</option><option value="major">Jackpot MAJOR</option><option value="grand">GRAND jackpot (grille pleine)</option><option value="roue">Roue de Nils · gain ×100</option><option value="tours">Roue de Nils · tours gratuits</option><option value="epique">Épique alignée (son)</option><option value="legendaire">Légendaire alignée (son)</option><option value="megagain">Méga gain</option><option value="booster">3 boosters → 1 booster offert</option><option value="carte">5 boosters → carte offerte</option><option value="gain">Petit gain</option></select></div>`},
   {k:"booster",t:"Ouverture de booster",d:"Le paquet, la lueur mystère, l'animation des épiques/légendaires, le son et la vidéo. Choisis une carte précise pour tester son son ou sa vidéo (incrustée dans la carte).",f:`
     <div class="field"><label>Génération du booster</label><select name="gen"><option value="1">Génération 1</option><option value="2">Génération 2 (déverrouillage + notifications)</option></select></div>
     <div class="field"><label>Design Gén. 2</label><select name="skin"><option value="neon">Néon</option><option value="vapor">Vapor</option><option value="glitch">Glitch</option></select></div>

@@ -8,8 +8,8 @@
    ========================================================= */
 const SJ=14, SCOIN=15, SCAM=16, SBST=17;
 const SLOT_W=[20,20,20,20,20,20,6,6,6,6,3,3,3,2.2,9,22,1.2,1.5];   // seulement pour l'aspect des rouleaux qui défilent
-const SLOT_PAY={3:[1,1,1,1,1,1,1,1,1,1,2,2,2,4,5],4:[1,1,1,1,1,1,2,2,2,2,5,5,5,10,15],5:[2,2,2,2,2,2,4,4,4,4,12,12,12,30,60]};
-const SLOT_JP={101:["MINI",20],102:["MINOR",50],103:["MAJOR",250],104:["GRAND",0]};
+const SLOT_PAY={3:[1,1,1,1,1,1,1,1,1,1,2,2,2,5,6],4:[1,1,1,1,1,1,2,2,2,2,6,6,6,12,20],5:[2,2,2,2,2,2,5,5,5,5,15,15,15,40,80]};
+const SLOT_JP={101:["MINI",50],102:["MINOR",150],103:["MAJOR",500],104:["GRAND",0]};
 const SLOT_ROLE=["Commune","Commune","Commune","Commune","Commune","Commune","Rare","Rare","Rare","Rare","Épique","Épique","Épique","Légendaire","Joker"];
 
 const Slot={
@@ -42,7 +42,8 @@ const Slot={
   curBet(){return this.info&&this.info.free?this.info.fbet:this.bet;},
   randSym(r){const w=SLOT_W.slice();if(r===0||r===4)w[SJ]=0;let t=Math.random()*w.reduce((a,b)=>a+b,0);for(let i=0;i<w.length;i++){t-=w[i];if(t<0)return i;}return 0;},
   camsHTML(n){
-    return [0,1,2].map(i=>{const hits=Math.max(0,Math.min(3,n-i*3));return `<div class="cam h${hits}" data-cam="${i}" aria-label="Appareil ${i+1} : ${hits} coup${hits>1?"s":""} sur 3"><div class="camin">${CAM_SVG}${CRACK_SVG}</div></div>`;}).join("");
+    return [0,1,2].map(i=>{const hits=Math.max(0,Math.min(3,n-i*3));
+      return `<div class="ped h${hits}" data-cam="${i}" aria-label="Appareil ${i+1} : ${hits} coup${hits>1?"s":""} sur 3"><div class="pglow"></div><div class="cam"><div class="camin">${CAM_SVG}${CRACK_SVG}</div></div>${PED_SVG}<div class="pips">${[0,1,2].map(k=>`<i class="${k<hits?"on":""}"></i>`).join("")}</div></div>`;}).join("");
   },
   nextIn(){const n=this.info?.next?new Date(this.info.next)-Date.now():0;return n>0?dur(n):"bientôt";},
   view(){
@@ -55,12 +56,16 @@ const Slot={
     const w=(I.wins||[])[0];
     return `<div class="cab${free?" freemode":""}">
       <canvas class="slotfx" id="slotfx" aria-hidden="true"></canvas>
-      <div class="marquee"><div class="mq-in">
-        <div class="mq-title" aria-label="Fortune Khey"><span class="f1">FORTUNE</span><span class="f2">KHEY</span></div>
-        <div class="jp-grand"><span>GRAND</span><b id="jpg">${this.fmtK(I.pool)}</b></div></div></div>
-      <div class="jp-row"><div class="j3"><span>MAJOR</span><b>${fmt(250*bet)}</b></div><div class="j2"><span>MINOR</span><b>${fmt(50*bet)}</b></div><div class="j1"><span>MINI</span><b>${fmt(20*bet)}</b></div></div>
-      <div class="camrow"><div class="cams" id="cams">${this.camsHTML(this.cam)}</div>
-        <span class="camlab"><b>Casse les 3 appareils de Nils</b><br>→ Roue de Nils<br><small>Nouvelles réfs dans ${this.nextIn()}</small></span></div>
+      <div class="topper">
+        <div class="logo" aria-label="Fortune Khey"><span>FORTUNE</span><span>KHEY</span></div>
+        <div class="plaque pgrand"><small>GRAND</small><b id="jpg">${this.fmtK(I.pool)}</b><i class="psh"></i></div>
+        <div class="plaques"><div class="plaque pmajor"><small>MAJOR</small><b>${fmt(500*bet)}</b><i class="psh"></i></div><div class="plaque pminor"><small>MINOR</small><b>${fmt(150*bet)}</b><i class="psh"></i></div><div class="plaque pmini"><small>MINI</small><b>${fmt(50*bet)}</b><i class="psh"></i></div></div>
+      </div>
+      <div class="slotstage">
+        <div class="st-rays"></div><div class="st-coin"><span>RP</span></div>
+        <div class="peds" id="cams">${this.camsHTML(this.cam)}</div>
+        <p class="st-lab">Casse les 3 appareils de Nils → <b>Roue de Nils</b><span> · réfs changées dans ${this.nextIn()}</span></p>
+      </div>
       <div class="reelbox"><div class="reelframe"><div class="reels" id="reels">${reels}
         <div class="slotbanner" id="sbanner" hidden></div></div></div></div>
       <div class="led" id="smsg" role="status">${free?`🎡 ${free} TOUR${free>1?"S":""} GRATUIT${free>1?"S":""} · ${bet} K`:w?`🏆 ${esc(pseudoOf(w.user))} : ${esc(w.label)}${w.amount?` · ${fmt(w.amount)} K`:""}`:"243 FAÇONS DE GAGNER"}</div>
@@ -69,11 +74,11 @@ const Slot={
         <button class="spinbtn" id="spin" data-act="slotspin" ${!free&&S.me.kheys<bet?"disabled":""}><i class="gloss"></i><span>${free?"GRATUIT":"TOURNER"}</span><small>${free?`${free} restant${free>1?"s":""}`:`mise ${bet} K`}</small></button>
         <button class="iconbtn" data-act="slotpay" aria-label="Règles et gains">ⓘ</button>
       </div>
-      <p class="slotfoot">${I.spins||0} / ${I.cap||500} tours aujourd'hui · Retour moyen ≈ 92 %</p>
+      <p class="slotfoot">${I.spins||0} / ${I.cap||500} tours aujourd'hui · Retour moyen ≈ 105 %</p>
     </div>`;
   },
   mount(){
-    const cv=document.getElementById("slotfx"); if(cv){SFx.detach();SFx.attach(cv);}
+    const cv=document.getElementById("slotfx"); if(cv){SFx.detach();SFx.attach(cv);SFx.ambient(true);}
     this.size(); if(!this._rs){this._rs=()=>this.size();addEventListener("resize",this._rs);}
   },
   size(){const r=document.querySelector("#reels .reel");if(r)document.getElementById("reels").style.setProperty("--th",(r.clientHeight/3)+"px");},
@@ -88,9 +93,10 @@ const Slot={
     const btn=document.getElementById("spin"); if(btn) btn.classList.add("going");
     this.msg(free?"TOUR GRATUIT…":"BONNE CHANCE…");
     this.clearWins();
-    if(!free){S.me.kheys-=bet;renderTop();}
+    if(!free&&!(typeof Test!=="undefined"&&Test.kind==="slot")){S.me.kheys-=bet;renderTop();}
     const spinning=this.startReels();
-    const r=await sb.rpc("slot_spin",{p_bet:bet});
+    const test=typeof Test!=="undefined"&&Test.kind==="slot"&&Test.on();
+    const r=test?await new Promise(res=>setTimeout(()=>res({data:this.fake(Test.q.get("case")||"pluie")}),350)):await sb.rpc("slot_spin",{p_bet:bet});
     if(r.error){this.stopReels(spinning);if(!free)S.me.kheys+=bet;renderTop();this.busy=false;btn?.classList.remove("going");toast(errMsg(r.error));return;}
     const o=r.data;
     if(o.symbols&&JSON.stringify(o.symbols)!==JSON.stringify(this.info.symbols)){this.info.symbols=o.symbols;this.preload();}
@@ -111,7 +117,7 @@ const Slot={
     const f=now=>{const k=Math.min(1,(now-t0)/600);el.textContent=this.fmtK(a+(b-a)*k);if(k<1&&el.isConnected)requestAnimationFrame(f);};requestAnimationFrame(f);},
   refreshCtl(o){
     const v=$("#view"), tmp=document.createElement("div"); tmp.innerHTML=this.view();
-    for(const sel of [".slotctl",".slotfoot",".jp-row",".led"]){const a=v.querySelector(sel),b=tmp.querySelector(sel);if(a&&b)a.replaceWith(b);}
+    for(const sel of [".slotctl",".slotfoot",".plaques",".led"]){const a=v.querySelector(sel),b=tmp.querySelector(sel);if(a&&b)a.replaceWith(b);}
     this.cab()?.classList.toggle("freemode",!!this.info.free);
     if(o&&o.win>0) this.msg(`GAGNÉ : ${this.fmtK(o.win)}`); else if(o&&!this.info.free) this.msg(o.prize?"🎁 CADEAU !":"RETENTE TA CHANCE !");
   },
@@ -182,10 +188,10 @@ const Slot={
     for(const p of pos){
       if(n>=9) break;
       const el=this.cell(p), ci=Math.floor(n/3), cam=cams.querySelector(`[data-cam="${ci}"]`);
-      if(el&&cam) await this.flyTo(el,cam);
+      if(el&&cam) await this.flyTo(el,cam.querySelector(".cam")||cam);
       n++;
       const hits=n-ci*3;
-      if(cam){cam.className=`cam h${hits} hit`;void cam.offsetWidth;
+      if(cam){cam.className=`ped h${hits} hit`;cam.querySelectorAll(".pips i").forEach((x,k)=>x.classList.toggle("on",k<hits));void cam.offsetWidth;
         const rc=cam.getBoundingClientRect(), cx=rc.left+rc.width/2, cy=rc.top+rc.height/2;
         SFx.burst(cx,cy,["#ffffff","#dff6ff"],22,{speed:4,g:0,life:18,size:3.4});   // flash
         if(hits>=3){cam.classList.add("boom");this.shards(cam);Sfx.p("smash");buzz([20,30,80]);
@@ -212,7 +218,7 @@ const Slot={
       an.onfinish=()=>{d.remove();res();}; setTimeout(()=>{d.remove();res();},700);
     });
   },
-  repairCams(left){const cams=document.getElementById("cams");if(!cams)return;cams.innerHTML=this.camsHTML(left);cams.querySelectorAll(".cam").forEach(c=>c.classList.add("repair"));},
+  repairCams(left){const cams=document.getElementById("cams");if(!cams)return;cams.innerHTML=this.camsHTML(left);cams.querySelectorAll(".ped").forEach(c=>c.classList.add("repair"));Sfx.p("ding");},
 
   /* ---------- Gains (243 façons) ---------- */
   clearWins(){const r=document.getElementById("reels");if(!r)return;r.classList.remove("dim");r.querySelectorAll(".tl.win").forEach(x=>x.classList.remove("win"));},
@@ -315,47 +321,108 @@ const Slot={
     await this.banner(`<small>JACKPOT</small><b>${name}</b><span>+ ${this.fmtK(amount)}</span>`,"jackpot jp-"+name.toLowerCase(),name==="GRAND"?3400:2000);
   },
 
-  /* ---------- Roue de Nils : le grand show ---------- */
+  /* ---------- Roue de Nils : le grand show, lancée par le joueur ---------- */
   async wheel(o){
     const W=this.info.wheel||[], seg=o.wheel, n=W.length||8, step=360/n;
     await this.wait(250);
     const cols=["#21d4fd","#ff3bd5","#ffd23f","#3dffa8","#8b7bff","#ff8a3d","#ff4f6d","#c6ff3d"];
-    const grad=W.map((s,i)=>`${s.t==="w"?cols[i%cols.length]:"#1b1440"} ${i*step}deg ${(i+1)*step}deg`).join(",");
+    const grad=W.map((s,i)=>`${s.t==="w"?cols[i%cols.length]:"#141a5c"} ${i*step}deg ${(i+1)*step}deg`).join(",");
     const bulbs=Array.from({length:24},(_,i)=>`<i class="wb" style="transform:rotate(${i*15}deg)"></i>`).join("");
-    const ov=document.createElement("div"); ov.className="wheelov"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-label","Roue de Nils");
-    ov.innerHTML=`<div class="wh-rays"></div><div class="wh-in"><p class="wh-t">📸 Les 3 appareils sont détruits !</p><h2 class="wh-h">ROUE DE NILS</h2>
+    const ov=document.createElement("div"); ov.className="wheelov intro"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-label","Roue de Nils");
+    ov.innerHTML=`<div class="wh-rays"></div><div class="wh-flash"></div>
+      <div class="wh-in"><p class="wh-t">📸 LES 3 APPAREILS SONT DÉTRUITS !</p><h2 class="wh-h"><span>ROUE</span><span>DE NILS</span></h2>
       <div class="wh-box"><div class="wh-bulbs">${bulbs}</div><div class="wh-ptr"></div><div class="wh-spin" id="wh"><div class="wh-face" style="background:conic-gradient(${grad})"></div>
         ${W.map((s,i)=>`<span class="ws ${s.t}" style="transform:rotate(${i*step+step/2}deg)"><b>${s.t==="w"?`×${s.v}`:`${s.v}<small>TOURS</small>`}</b></span>`).join("")}</div>
-        <div class="wh-win" id="whwin" style="transform:rotate(${seg.i*step}deg);--a:${step}deg"></div>
-        <div class="wh-hub">${CAM_SVG}</div></div>
-      <p class="wh-res" id="whres">&nbsp;</p></div>`;
+        <div class="wh-win" style="transform:rotate(${seg.i*step}deg);--a:${step}deg"></div>
+        <button type="button" class="wh-hub" id="whgo" aria-label="Lancer la roue">${CAM_SVG}</button></div>
+      <button type="button" class="wh-go" id="whgo2"><i class="gloss"></i><span>LANCER LA ROUE</span><small>touche la roue ou ce bouton</small></button>
+      <div class="wh-res" id="whres"></div><button type="button" class="wh-ok" id="whok" hidden>CONTINUER</button></div>`;
     document.body.appendChild(ov);
-    Sfx.p("fanfare"); this.party("party",9000);
-    await this.wait(900);
-    const wh=ov.querySelector("#wh"), turns=this.fast?2:6, target=turns*360+(360-(seg.i*step+step/2));
-    const dur=this.fast?1300:5200;
-    ov.classList.add("spinning");
-    wh.style.transition=`transform ${dur}ms cubic-bezier(.1,.55,.08,1)`; void wh.offsetWidth; wh.style.transform=`rotate(${target}deg)`;
-    const ptr=ov.querySelector(".wh-ptr");
-    let last=-1; const t0=performance.now();
-    await new Promise(res=>{const f=()=>{const m=getComputedStyle(wh).transform;let a=0;if(m&&m!=="none"){const v=m.split("(")[1].split(",");a=Math.atan2(+v[1],+v[0])*180/Math.PI;}
-      const k=Math.floor((((a%360)+360)%360+step/2)/step);
-      if(k!==last){last=k;Sfx.p("tick");ptr.classList.remove("kick");void ptr.offsetWidth;ptr.classList.add("kick");}
-      if(performance.now()-t0>dur*.55) ov.classList.remove("spinning");
-      if(performance.now()-t0<dur+60&&ov.isConnected)requestAnimationFrame(f);else res();};requestAnimationFrame(f);});
-    ov.classList.add("landed");
+    Sfx.p("fanfare"); this.party("party",20000); buzz([40,40,80]);
+    const box=ov.querySelector(".wh-box");
+    const rb=box.getBoundingClientRect();
+    SFx.burst(rb.left+rb.width/2,rb.top+rb.height/2,["#ffd23f","#fff6c8","#ff3bd5","#21d4fd"],80,{speed:9,g:.08,life:80});
+    await this.wait(1100); ov.classList.remove("intro");
+    // le joueur lance la roue (ou elle part toute seule au bout de 10 s)
+    await new Promise(res=>{let done=false;const go=()=>{if(done)return;done=true;res();};
+      ov.querySelector("#whgo").onclick=go; ov.querySelector("#whgo2").onclick=go; ov.querySelector(".wh-spin").onclick=go;
+      setTimeout(go,this.fast?50:10000);});
+    Sfx.unlock(); Sfx.p("click"); ov.classList.add("launched");
+    const wh=ov.querySelector("#wh"), ptr=ov.querySelector(".wh-ptr"), rays=ov.querySelector(".wh-rays");
+    const turns=this.fast?3:8, end=turns*360+(360-(seg.i*step+step/2));
+    const windup=-28, tWind=this.fast?100:450, tSpin=this.fast?1500:8200;
+    let last=-1, ang=0, prev=0, lastDrum=0;
+    const setA=a=>{ang=a;wh.style.transform=`rotate(${a}deg)`;};
+    // 1) élan en arrière
+    await this.anim(tWind,k=>setA(windup*Math.sin(k*Math.PI/2)));
+    Sfx.p("whoosh");
+    // 2) la roue part très vite puis ralentit longtemps (ease-out puissance 5), avec suspense à la fin
+    const t0=performance.now();
+    await this.anim(tSpin,k=>{
+      const e=1-Math.pow(1-k,5);
+      const a=windup+(end-windup)*e; setA(a);
+      const v=Math.abs(a-prev); prev=a;
+      ov.style.setProperty("--spd",Math.min(1,v/25).toFixed(2));
+      ov.classList.toggle("fast",v>9);
+      const cell=Math.floor((((a%360)+360)%360+step/2)/step);
+      if(cell!==last){last=cell;Sfx.p("tick");ptr.classList.remove("kick");void ptr.offsetWidth;ptr.classList.add("kick");}
+      const now=performance.now();
+      if(k>.55&&now-lastDrum>(k>.85?90:140)){lastDrum=now;Sfx.p("drum");}
+      if(k>.88) ov.classList.add("suspense");
+    });
+    setA(end); ov.classList.remove("fast","suspense"); ov.classList.add("landed");
+    // 3) arrêt : flash, case gagnante qui clignote, feux d'artifice
+    Sfx.p("smash"); buzz([30,30,120]);
     const res=ov.querySelector("#whres");
+    await this.wait(350);
     if(seg.t==="w"){res.innerHTML=`<b>×${seg.v}</b><span>${this.fmtK(seg.amount)}</span>`;Sfx.p("bigjingle");}
-    else{res.innerHTML=`<b>${seg.v} TOURS GRATUITS</b><span>à ${o.bet} K</span>`;Sfx.p("jackpot");}
-    res.classList.add("on"); buzz([30,30,90]);
-    const r=ov.querySelector(".wh-box").getBoundingClientRect();
-    const fw=setInterval(()=>SFx.burst(r.left+Math.random()*r.width,r.top+Math.random()*r.height*.6,cols,50,{speed:8,g:.1,life:80}),260);
-    SFx.burst(r.left+r.width/2,r.top+r.height/2,cols,120,{speed:11,g:.15,life:100,conf:true});
-    await this.wait(2600);
-    clearInterval(fw);
+    else{res.innerHTML=`<b>${seg.v} TOURS GRATUITS</b><span>à ${o.bet} K le tour</span>`;Sfx.p("jackpot");}
+    res.classList.add("on");
+    const r=box.getBoundingClientRect();
+    SFx.burst(r.left+r.width/2,r.top+r.height/2,cols,140,{speed:12,g:.15,life:110,conf:true});
+    const fw=setInterval(()=>SFx.burst(Math.random()*innerWidth,innerHeight*(.1+Math.random()*.4),cols,45,{speed:7,g:.08,life:80}),300);
+    const rain=setInterval(()=>SFx.burst(Math.random()*innerWidth,-10,["#ffd23f","#fff1a8","#ff9a3d"],8,{speed:2.5,g:.25,life:130,conf:true,size:3.4}),120);
+    const ok=ov.querySelector("#whok"); ok.hidden=false;
+    await new Promise(res2=>{const tm=setTimeout(res2,this.fast?300:6000);ok.onclick=()=>{clearTimeout(tm);res2();};});
+    clearInterval(fw); clearInterval(rain);
     ov.classList.add("out"); await this.wait(350); ov.remove();
     this.repairCams(o.cam);
     if(seg.t==="f"){this.info.free=o.free;this.info.fbet=o.bet;}
+  },
+  anim(ms,fn){return new Promise(res=>{const t0=performance.now();const f=now=>{const k=Math.min(1,(now-t0)/ms);fn(k);if(k<1)requestAnimationFrame(f);else res();};requestAnimationFrame(f);});},
+
+  /* ---------- Mode test (admin) : scénarios forcés, sans serveur ni Kheys ---------- */
+  fake(kind){
+    const bet=this.curBet(), R=a=>a[Math.floor(Math.random()*a.length)];
+    const base={bet,paid:true,kheys:S.me.kheys,free:Math.max(0,(this.info.free||0)-(this.info.free?1:0)),spins:this.info.spins||0,pool:this.info.pool,cam:this.cam,events:[],wheel:null,prize:null,lines:[],lw:0,bonus:null,cams:0,boosters:0,coins:{},win:0};
+    const filler=()=>Array.from({length:15},(_,i)=>R([0,1,2,3,4,5,6,7,8,9]));
+    let g=filler(), o={...base,grid:g};
+    const way=(sym,n,cells)=>({s:sym,n,m:1,w:SLOT_PAY[n][sym]*bet,cells});
+    if(kind==="gain"){g[0]=0;g[4]=0;g[6]=0;o.lines=[way(0,3,[0,4,6])];}
+    if(kind==="epique"){g[1]=10;g[3]=10;g[8]=10;g[10]=10;o.lines=[way(10,4,[1,3,8,10])];}
+    if(kind==="legendaire"){g[0]=13;g[4]=13;g[7]=SJ;g[9]=13;g[13]=13;o.lines=[way(13,5,[0,4,7,9,13])];}
+    if(["pluie","mini","minor","major","grand"].includes(kind)){
+      const pos=[0,2,4,6,8,10,13];pos.forEach(p=>{g[p]=SCOIN;o.coins[p]=R([1,2,3,5]);});
+      const jp={mini:101,minor:102,major:103,grand:104}[kind];
+      const steps=[[{p:1,v:2}],[],[{p:12,v:jp||8},{p:5,v:3}],[],[],[]];
+      if(kind==="grand"){const rest=[...Array(15).keys()].filter(p=>!pos.includes(p)&&p!==1&&p!==12&&p!==5);steps.splice(3,0,rest.map(p=>({p,v:R([1,2,3])})));}
+      let tot=0;const all={...o.coins};steps.flat().forEach(c=>all[c.p]=c.v);
+      Object.values(all).forEach(v=>tot+=v<100?v*bet:v<104?SLOT_JP[v][1]*bet:0);
+      o.bonus={steps,total:tot,jackpots:jp?[kind]:[],full:kind==="grand"};
+      if(kind==="grand") o.events=[{t:"grand",v:Math.floor(this.info.pool*(bet===10?1:bet===5?.5:.1))}];
+    }
+    if(kind==="roue"||kind==="tours"){
+      [1,5,9].forEach(p=>g[p]=SCAM); o.cams=3; this.cam=6; const c=document.getElementById("cams"); if(c) c.innerHTML=this.camsHTML(6); o.cam=0;
+      const W=this.info.wheel||[];const i=kind==="tours"?W.findIndex(x=>x.t==="f"&&x.v>=12):W.findIndex(x=>x.t==="w"&&x.v>=100);
+      const sg=W[Math.max(0,i)]; o.wheel={i:Math.max(0,i),t:sg.t,v:sg.v,amount:sg.t==="w"?sg.v*bet:0};
+      if(sg.t==="f"){o.free=sg.v;}
+    }
+    if(kind==="booster"){[2,7,12].forEach(p=>g[p]=SBST);o.boosters=3;o.prize={t:"boosters",n:1};}
+    if(kind==="carte"){[1,4,7,10,13].forEach(p=>g[p]=SBST);o.boosters=5;const e=CARDS.find(c=>c.r==="E"&&c.gen===2)||CARDS.find(c=>c.r==="E");o.prize={t:"card",card:e.id};}
+    if(kind==="megagain"){[0,3,6,9,12].forEach(p=>g[p]=13);[4,7].forEach(p=>g[p]=SJ);o.lines=[{s:13,n:5,m:4,w:SLOT_PAY[5][13]*4*bet,cells:[0,3,4,6,7,9,12]}];}
+    o.lw=o.lines.reduce((a,x)=>a+x.w,0);
+    o.win=o.lw+(o.bonus?o.bonus.total:0)+(o.wheel?o.wheel.amount:0)+(o.events[0]?.v||0);
+    return o;
   },
 
   async prize(o){
@@ -390,10 +457,10 @@ const Slot={
       Les réfs changent toutes les 6 heures (prochain changement dans ${this.nextIn()}). Aligner une épique ou une légendaire joue son son.</p>
       <div class="ptlist">${[14,13,12,11,10,9,8,7,6,5,4,3,2,1,0].map(row).join("")}</div>
       <div class="ptx"><div class="ptr">${this.tile(SCOIN,3)}<div class="ptn"><b>Khey d'or</b><span class="note">6 pièces ou plus : <b>Pluie de Kheys</b>. Les pièces restent, 3 relances, chaque nouvelle pièce remet les relances à 3. Grille pleine = GRAND.</span></div></div>
-      <div class="ptr">${this.tile(SCAM)}<div class="ptn"><b>Appareil photo</b><span class="note">Chaque appareil qui tombe abîme ceux de Nils (3 coups chacun). Les 3 détruits : <b>roue de Nils</b> (×8 à ×60 ou 6 à 15 tours gratuits).</span></div></div>
+      <div class="ptr">${this.tile(SCAM)}<div class="ptn"><b>Appareil photo</b><span class="note">Chaque appareil qui tombe abîme ceux de Nils (3 coups chacun). Les 3 détruits : <b>roue de Nils</b> (×10 à ×100 ou 8 à 20 tours gratuits).</span></div></div>
       <div class="ptr">${this.tile(SBST)}<div class="ptn"><b>Booster</b><span class="note">3 n'importe où : 1 booster · 4 : 3 boosters · 5 : une carte épique.</span></div></div></div>
-      <p class="note">Jackpots sur les pièces : MINI 20×, MINOR 50×, MAJOR 250× la mise. <b>GRAND</b> = la cagnotte partagée (3 % de toutes les mises) : en entier à 10 K, la moitié à 5 K, 10 % à 1 K.
-      Retour moyen ≈ 92 % : sur la durée, la machine garde environ 8 % des mises. 500 tours payants par jour.</p>
+      <p class="note">Jackpots sur les pièces : MINI 50×, MINOR 150×, MAJOR 500× la mise. <b>GRAND</b> = la cagnotte partagée (3 % de toutes les mises) : en entier à 10 K, la moitié à 5 K, 10 % à 1 K.
+      Retour moyen ≈ 105 % : sur la durée, la machine rend un peu plus que ce qu'on mise. 500 tours payants par jour.</p>
       <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="ptclose">Fermer</button></div></div>`;
     $("#ptclose").onclick=()=>dlg.close(); dlg.showModal();
   },
@@ -418,6 +485,16 @@ const CAM_SVG=`<svg class="camsvg" viewBox="0 0 100 76" aria-hidden="true">
   <ellipse cx="44" cy="41" rx="5" ry="3" fill="#fff" opacity=".55" transform="rotate(-30 44 41)"/><circle cx="57" cy="54" r="1.6" fill="#fff" opacity=".35"/>
   <circle cx="86" cy="34" r="3" fill="#ff3bd5"/></svg>`;
 const CRACK_SVG=`<svg class="crack" viewBox="0 0 100 76" aria-hidden="true"><path class="c1" d="M50 48l-6-9 3-6M50 48l9-4 6 3M50 48l-2 10 4 6"/><path class="c2" d="M44 39l-9-5-6 2M59 44l10-9M48 58l-9 7M50 48l12 9 5 8M50 48l-15 3"/><path class="c3" d="M29 36l-14-8M69 35l18-7M39 65l-6 9M67 65l10 9M35 51l-24 2"/></svg>`;
+// Piédestal doré (comme les statues des vraies machines)
+const PED_SVG=`<svg class="pedsvg" viewBox="0 0 80 62" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+  <defs><linearGradient id="pdg" x1="0" x2="1"><stop offset="0" stop-color="#6b4500"/><stop offset=".22" stop-color="#ffe38a"/><stop offset=".45" stop-color="#b37b00"/><stop offset=".7" stop-color="#fff3c0"/><stop offset="1" stop-color="#6b4500"/></linearGradient>
+  <linearGradient id="pdr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff4d6d"/><stop offset="1" stop-color="#7a0820"/></linearGradient></defs>
+  <ellipse cx="40" cy="7" rx="27" ry="5.5" fill="url(#pdr)"/><path d="M13 7 Q40 16 67 7" fill="none" stroke="#ffd23f" stroke-width="1.2"/>
+  <rect x="9" y="9" width="62" height="7" rx="2" fill="url(#pdg)"/><rect x="13" y="16" width="54" height="3" fill="#7a5200"/>
+  <rect x="19" y="19" width="42" height="25" fill="url(#pdg)"/>
+  <g stroke="rgba(80,50,0,.45)" stroke-width="1.4"><line x1="25" y1="20" x2="25" y2="43"/><line x1="31" y1="20" x2="31" y2="43"/><line x1="37" y1="20" x2="37" y2="43"/><line x1="43" y1="20" x2="43" y2="43"/><line x1="49" y1="20" x2="49" y2="43"/><line x1="55" y1="20" x2="55" y2="43"/></g>
+  <rect x="13" y="44" width="54" height="6" rx="2" fill="url(#pdg)"/><rect x="6" y="50" width="68" height="11" rx="3" fill="url(#pdg)"/>
+  <rect x="10" y="52.5" width="60" height="6" rx="2" fill="#2a0a12"/></svg>`;
 // Symbole booster : un mini paquet REF POCKET
 const BOOSTER_SVG=`<svg class="bstsvg" viewBox="0 0 60 80" aria-hidden="true">
   <defs><linearGradient id="bpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd23f"/><stop offset=".33" stop-color="#ff6fbf"/><stop offset=".66" stop-color="#8b7bff"/><stop offset="1" stop-color="#21d4fd"/></linearGradient>

@@ -394,6 +394,8 @@ input[type=number],select{background:var(--ink);border:1px solid var(--line);col
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* ===== Version en ligne : connexion, échanges ===== */
 nav.tabs .wrap{grid-template-columns:repeat(6,1fr);gap:2px}
+nav.tabs button{position:relative}
+.navnew{position:absolute;top:2px;left:50%;margin-left:4px;background:#ff3b6b;color:#fff;font-size:8.5px;font-weight:900;letter-spacing:.04em;padding:1px 4px;border-radius:5px;animation:newpulse 1.4s ease-in-out infinite;box-shadow:0 0 0 2px var(--panel)}
 nav.tabs button{font-size:11px;padding-inline:2px;min-width:0}
 @media (max-width:380px){nav.tabs button{font-size:10px;letter-spacing:-.01em}}
 body:not(.authed) nav.tabs,body:not(.authed) header.top{display:none}
@@ -921,7 +923,7 @@ details.hist[open] summary{margin-bottom:8px}
     <button data-tab="collection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="7" height="9" rx="1.5"/><rect x="14" y="4" width="7" height="9" rx="1.5"/><rect x="3" y="15" width="18" height="5" rx="1.5"/></svg>Collection</button>
     <button data-tab="duel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/><path d="M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2"/></svg>Duel<span class="badge" id="duelbadge" hidden></span></button>
     <button data-tab="market"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l1.5-5h15L21 9M3 9h18v2a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0zM5 13v8h14v-8"/></svg>Marché</button>
-    <button data-tab="machine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="15" height="15" rx="2"/><path d="M7 10v5M10.5 10v5M14 10v5M18 9h2a1 1 0 0 1 1 1v3M21 6.5v0"/><circle cx="21" cy="5" r="1.4" fill="currentColor"/></svg>Machine</button>
+    <button data-tab="machine"><span class="navnew" id="navnew" hidden>NEW</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="15" height="15" rx="2"/><path d="M7 10v5M10.5 10v5M14 10v5M18 9h2a1 1 0 0 1 1 1v3M21 6.5v0"/><circle cx="21" cy="5" r="1.4" fill="currentColor"/></svg>Machine</button>
     <button data-tab="trades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c3 .2 5.5 2.6 5.5 5.8"/></svg>Amis<span class="badge" id="tradebadge" hidden></span></button>
   </div>
 </nav>
@@ -1171,6 +1173,7 @@ const Sfx=(()=>{
     smallwin:[()=>{tone(784,0,.12,"triangle",.08);tone(1047,.08,.18,"triangle",.08);},.3],
     win:[()=>[523,659,784,1047].forEach((f,i)=>tone(f,i*.08,.25,"triangle",.1)),.6],
     click:[()=>{tone(1800,0,.03,"square",.05);tone(900,.02,.05,"triangle",.06);},.09],
+    drum:[()=>{noise(.07,"lowpass",900,200,.22);tone(110,0,.07,"sine",.12);},.09],
     ding:[()=>{tone(2093,0,.5,"sine",.09);tone(3136,0,.4,"sine",.04);},.55],
     riser:[()=>{for(let i=0;i<14;i++)tone(220*Math.pow(2,i/12),i*.065,.12,"sawtooth",.035);noise(.9,"bandpass",400,4000,.06);},1],
     bigjingle:[()=>{[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,i*.07,.35,"triangle",.1));[1047,1319,1568].forEach(f=>tone(f,.5,.9,"sine",.06));},1.45],
@@ -1808,6 +1811,7 @@ function renderTop(){
   const av=b+bought(1)+bought(2), nb=$("#navbadge"); nb.hidden=av<1; nb.textContent=av;
   const tb=$("#tradebadge"), n=incomingTrades().length+incomingFriendReqs().length; tb.hidden=!n; tb.textContent=n;
   const sn=$("#sugnew"); if(sn) sn.hidden=!!L.sugUsed;
+  const nn=$("#navnew"); if(nn) nn.hidden=!!L.slotSeen;
   const db=$("#duelbadge"), nd=incomingInvites().length+(B&&B.online&&!B.over&&B.turn===0?1:0); db.hidden=!nd; db.textContent=nd;
 }
 function render(){
@@ -1823,7 +1827,7 @@ function render(){
   if(tab==="duel") v.innerHTML=viewDuel();
   if(tab==="market") v.innerHTML=viewMarket();
   if(tab==="trades") v.innerHTML=viewSocial();
-  if(tab==="machine"){v.innerHTML=Slot.view();Slot.mount();}
+  if(tab==="machine"){v.innerHTML=Slot.view();Slot.mount();if(!L.slotSeen){L.slotSeen=1;saveL();renderTop();}}
 }
 // Hauteurs réelles de l'en-tête et de la barre d'onglets, pour que la page booster tienne pile dans l'écran
 function fitBars(){const h=document.querySelector("header.top"),n=document.querySelector("nav.tabs"),r=document.documentElement.style;
@@ -2992,6 +2996,7 @@ function showNews(){
   if(!S.me||B||$("#dlg").open||!$("#opening").hidden) return;
   const items=[];
   if(!L.newsSug) items.push({k:"newsSug",h:"Propose tes réfs !",p:"Une réf culte manque ? Envoie-la en 30 secondes depuis le bouton 💡 : choisis sa plateforme (YouTube, Snap, TikTok…) et explique-la. Si l'équipe la valide, elle rejoint la Génération 2 avec ton pseudo.",b:"Proposer une réf",go:openSuggest});
+  if(!L.newsSlot) items.push({k:"newsSlot",h:"🎰 Nouveau : la machine Fortune Khey",p:"Un nouvel onglet Machine ! Fais tourner les rouleaux avec les réfs du moment, casse les 3 appareils photo de Nils pour lancer la roue, et vise les jackpots MINI, MINOR, MAJOR… et la cagnotte GRAND partagée par toute la bande.",b:"Essayer la machine",go:()=>{tab="machine";render();}});
   if(!L.newsContest) items.push({k:"newsContest",h:"Concours des réfs 🏆",p:"Les 3 joueurs qui font valider le plus de réfs gagnent 5 000, 3 000 et 1 500 Kheys à la fin de la manche. Propose tes meilleures !",b:"Voir le classement",go:openSuggest});
   if(!L.newsG2&&genReady(2)) items.push({k:"newsG2",h:"La Génération 2 est là !",p:"Une nouvelle collection, avec ses propres boosters et 6 compétences inédites : Feat, En direct, Cancel, Ghosting, Abonne-toi et Bad buzz. Choisis « Génération 2 » au-dessus du booster.",b:"Ouvrir un booster Gén. 2",go:()=>{L.bgen=2;saveL();tab="boosters";render();}});
   if(!items.length) return;
@@ -3085,7 +3090,7 @@ const Test={
   on(){return !!this.kind&&!!S.me?.is_admin;},
   card(k="card"){const id=this.q.get(k);return id&&BYID[id]||null;},
   num(k,d){const v=parseInt(this.q.get(k),10);return isNaN(v)?d:v;},
-  names:{booster:"Ouverture de booster",card:"Carte en grand",video:"Vidéo de la carte",duel:"Duel contre le bot",choc:"Choc viral",pattern:"Rythme du choc",prize:"Butin de fin de duel"},
+  names:{slot:"Machine à sous",booster:"Ouverture de booster",card:"Carte en grand",video:"Vidéo de la carte",duel:"Duel contre le bot",choc:"Choc viral",pattern:"Rythme du choc",prize:"Butin de fin de duel"},
   init(){
     if(!this.kind) return;
     if(!S.me?.is_admin){toast("Le mode test est réservé aux admins.");return;}
@@ -3109,6 +3114,7 @@ const Test={
     const k=this.kind;
     try{
       if(k==="booster") return this.booster();
+      if(k==="slot"){tab="machine";render();toast("Test machine : chaque tour joue le scénario « "+(this.q.get("case")||"pluie")+" » (sans Kheys).");return;}
       if(k==="card") return this.cardView();
       if(k==="video") return this.cardView();
       if(k==="duel") return this.duel();
