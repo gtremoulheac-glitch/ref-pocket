@@ -2010,13 +2010,13 @@ end $$;
 -- Tirage d'un tour (sans rien enregistrer) : utilisé par slot_spin et par les simulations
 create or replace function public._slot_core(p_bet int) returns jsonb language plpgsql volatile as $$
 declare
-  wts numeric[] := array[20,20,20,20,20,20, 6,6,6,6, 3,3,3, 2.2, 9, 22, 1.2, 1.5];
-  pay3 int[] := array[1,1,1,1,1,1, 1,1,1,1, 2,2,2, 5, 6];
-  pay4 int[] := array[1,1,1,1,1,1, 2,2,2,2, 6,6,6, 12, 20];
-  pay5 int[] := array[2,2,2,2,2,2, 5,5,5,5, 15,15,15, 40, 80];
+  wts numeric[] := array[22,22,22,22,22,22, 6,6,6,6, 3,3,3, 2.2, 7, 22, 1.05, 1.6];
+  pay3 int[] := array[1,1,1,1,1,1, 1,1,1,1, 2,2,2, 4, 5];
+  pay4 int[] := array[1,1,1,1,1,1, 2,2,2,2, 5,5,5, 10, 15];
+  pay5 int[] := array[2,2,2,2,2,2, 4,4,4,4, 12,12,12, 30, 60];
   -- valeurs des pièces (× mise) ; 101..104 = Mini, Minor, Major, Grand
   cv int[] := array[1,2,3,5,8,10,101,102,103,104];
-  cw numeric[] := array[40,26,15,8,4,2.5,3,1.2,0.25,0.05];
+  cw numeric[] := array[45,28,14,6,3,1.5,2,0.8,0.2,0.05];
   g int[] := array_fill(0, array[15]); coins jsonb := '{}'; wins jsonb := '[]';
   w numeric[]; r int; k int; i int; sym int; n int; m int; c int; lw int := 0; nc int := 0; ncam int := 0; nb int := 0; cells jsonb;
   bonus jsonb := null; steps jsonb := '[]'; st jsonb; filled int; resp int; tot int := 0; jps jsonb := '[]'; v int; isfull boolean := false;
@@ -2053,7 +2053,7 @@ begin
     while resp > 0 and filled < 15 loop
       st := '[]';
       for i in 0..14 loop
-        if not coins ? i::text and random() < 0.036 then
+        if not coins ? i::text and random() < 0.03 then
           v := cv[public._wpick(cw)]; coins := coins || jsonb_build_object(i::text, v); st := st || jsonb_build_object('p', i, 'v', v); filled := filled + 1;
         end if;
       end loop;
@@ -2063,7 +2063,7 @@ begin
     isfull := filled >= 15;
     for v in select value::int from jsonb_each_text(coins) loop
       if v < 100 then tot := tot + v * p_bet;
-      elsif v < 104 then tot := tot + (case v when 101 then 50 when 102 then 150 else 500 end) * p_bet;
+      elsif v < 104 then tot := tot + (case v when 101 then 100 when 102 then 300 else 1000 end) * p_bet;
                          jps := jps || to_jsonb(case v when 101 then 'mini' when 102 then 'minor' else 'major' end);
       else jps := jps || to_jsonb('grand'::text); end if;
     end loop;
@@ -2075,8 +2075,7 @@ end $$;
 
 -- Roue de Nils : 8 cases (gain = × mise, tours = tours gratuits)
 create or replace function public._slot_wheel() returns jsonb language sql immutable as $$
-  select '[{"t":"w","v":10,"p":15},{"t":"f","v":8,"p":13},{"t":"w","v":25,"p":18},{"t":"f","v":12,"p":14},
-           {"t":"w","v":10,"p":15},{"t":"f","v":8,"p":13},{"t":"w","v":100,"p":6},{"t":"f","v":20,"p":6}]'::jsonb $$;
+  select '[{"t":"w","v":25,"p":15},{"t":"f","v":12,"p":13},{"t":"w","v":50,"p":18},{"t":"f","v":20,"p":14},{"t":"w","v":25,"p":15},{"t":"f","v":12,"p":13},{"t":"w","v":200,"p":6},{"t":"f","v":30,"p":6}]'::jsonb $$;
 
 create or replace function public.slot_info() returns jsonb
 language plpgsql stable security definer set search_path = public as $$

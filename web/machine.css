@@ -19,14 +19,16 @@
 
 /* ---------- Haut de la machine : logo et plaques de jackpot dorées ---------- */
 .topper{position:relative;display:grid;gap:4px;padding:6px 8px 7px;border-radius:18px;
-  background:radial-gradient(ellipse at 50% 0%,#2a4bd8 0%,#0c1a6b 45%,#060c38 100%);box-shadow:inset 0 0 0 2px #ffd23f,inset 0 0 0 4px #7a5200,0 0 22px -6px #ffd23f}
+  background:radial-gradient(ellipse at 15% 0%,rgba(255,138,0,.85),transparent 55%),radial-gradient(ellipse at 85% 0%,rgba(0,209,255,.75),transparent 55%),linear-gradient(160deg,#ff2e93 0%,#9b2cf5 55%,#3b0fa8 100%);
+  box-shadow:inset 0 0 0 2px #ffd23f,inset 0 0 0 4px #7a5200,0 0 22px -6px #ff2e93}
 .topper::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.25;
   background:repeating-conic-gradient(from 45deg,#ffd23f 0 8deg,transparent 8deg 22.5deg) 50% -40px/260px 260px}
-.logo{position:relative;display:flex;justify-content:center;gap:8px;font-family:var(--f-display);font-size:clamp(20px,3.6dvh,30px);line-height:1;
+.slogo{position:relative;display:flex;justify-content:center;gap:8px;font-family:var(--f-display);font-size:clamp(20px,3.6dvh,30px);line-height:1;
   background:linear-gradient(180deg,#fffbe6 0%,#ffe066 40%,#e09b00 55%,#fff1a8 75%,#b37400 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
   filter:drop-shadow(0 2px 0 #7a1a00) drop-shadow(0 0 8px rgba(255,180,0,.6));letter-spacing:.03em}
 .plaque{position:relative;overflow:hidden;display:grid;justify-items:center;line-height:1;padding:4px 6px 5px;border-radius:12px;
-  background:linear-gradient(180deg,#132fa8,#06125a);box-shadow:inset 0 0 0 2px #ffe38a,inset 0 0 0 3.5px #8a5d00,0 3px 8px rgba(0,0,0,.5)}
+  background:linear-gradient(180deg,var(--pc1,#5a12b8),var(--pc2,#25064f));box-shadow:inset 0 0 0 2px #ffe38a,inset 0 0 0 3.5px #8a5d00,0 3px 8px rgba(0,0,0,.45)}
+.pgrand{--pc1:#7a16d8;--pc2:#2a0660}.pmajor{--pc1:#d61f8c;--pc2:#5a0838}.pminor{--pc1:#0f8fd6;--pc2:#06345a}.pmini{--pc1:#12a86a;--pc2:#05402a}
 .plaque small{font-family:var(--f-display);font-size:9.5px;letter-spacing:.16em;padding:1px 7px;border-radius:6px;color:#2a1600;background:linear-gradient(180deg,#fff3c0,#ffc21a);margin-bottom:2px}
 .plaque b{font-family:var(--f-display);font-size:15px;color:#fff;text-shadow:0 2px 0 #000,0 0 8px rgba(255,255,255,.4);font-variant-numeric:tabular-nums}
 .plaque .psh{position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);transform:translateX(-130%);animation:gloss 4s ease-in-out infinite}
@@ -42,9 +44,9 @@
 
 /* ---------- Scène : la pièce d'or et les appareils de Nils sur leurs piédestaux ---------- */
 .slotstage{position:relative;overflow:hidden;border-radius:16px;height:clamp(92px,17dvh,160px);display:grid;grid-template-rows:1fr auto;
-  background:radial-gradient(ellipse 60% 75% at 50% 40%,#3a63ff 0%,#14239a 40%,#070d44 100%);box-shadow:inset 0 0 0 2px #ffd23f,inset 0 -18px 30px rgba(0,0,0,.5)}
+  background:radial-gradient(ellipse 55% 70% at 50% 38%,#fff3c0 0%,#ffb340 18%,#ff3d8b 45%,#8a1fd6 72%,#3a0a7a 100%);box-shadow:inset 0 0 0 2px #ffd23f,inset 0 -18px 30px rgba(40,0,60,.55)}
 .st-rays{position:absolute;left:50%;top:38%;width:600px;height:600px;translate:-50% -50%;pointer-events:none;
-  background:repeating-conic-gradient(from 0deg,rgba(255,240,180,.22) 0 6deg,transparent 6deg 15deg);-webkit-mask:radial-gradient(circle,#000 0,transparent 55%);mask:radial-gradient(circle,#000 0,transparent 55%);
+  background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.28) 0 5deg,transparent 5deg 12deg,rgba(0,230,255,.25) 12deg 17deg,transparent 17deg 24deg);-webkit-mask:radial-gradient(circle,#000 0,transparent 55%);mask:radial-gradient(circle,#000 0,transparent 55%);
   animation:raysrot 20s linear infinite}
 .st-coin{position:absolute;left:50%;top:6%;translate:-50% 0;height:56%;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
   background:radial-gradient(circle at 35% 30%,#fffbe6,#ffd23f 35%,#c98a00 70%,#6b4500);box-shadow:inset 0 0 0 3px #fff1a8,inset 0 0 0 7px #b37b00,0 0 30px 8px rgba(255,210,63,.55),0 0 70px rgba(255,255,255,.35);
@@ -79,17 +81,17 @@
   animation:shard 1s cubic-bezier(.2,.6,.4,1) forwards}
 .shard.lens{width:14px;height:14px;border-radius:50%;clip-path:none;background:radial-gradient(circle at 35% 35%,#9fe8ff,#2a5ea8 50%,#05030d)}
 @keyframes shard{from{transform:translate(-50%,-50%)}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) rotate(var(--rot));opacity:0}}
-.st-lab{position:relative;margin:0;padding:2px 8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:#d6e0ff;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st-lab{position:relative;margin:0;padding:2px 8px 4px;text-align:center;font-size:10.5px;font-weight:700;color:#fff;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-lab b{color:#ffd23f}
 .st-lab span{color:#8fe8ff}
 
 /* Rouleaux */
 .reelbox{min-height:0;container-type:size;display:grid;place-items:center}
-.reelframe{background:linear-gradient(180deg,#0c1a6b,#050a30)}
+.reelframe{background:linear-gradient(180deg,#5a0f9e,#24063f)}
 .reels{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:5px;border-radius:14px;
   width:min(calc(100cqw - 14px),calc((100cqh - 14px) * 5 / 3.15));height:min(calc(100cqh - 14px),calc(min(calc(100cqw - 14px),calc((100cqh - 14px) * 5 / 3.15)) * 4 / 5));
-  background:linear-gradient(180deg,#0a1458,#040824);box-shadow:inset 0 0 0 2px #ffd23f,inset 0 0 30px rgba(60,100,255,.35)}
-.reel{position:relative;overflow:hidden;border-radius:10px;background:linear-gradient(180deg,#081040,#16257a 50%,#081040)}
+  background:linear-gradient(180deg,#2a0752,#12022a);box-shadow:inset 0 0 0 2px #ffd23f,inset 0 0 30px rgba(255,46,147,.3)}
+.reel{position:relative;overflow:hidden;border-radius:10px;background:linear-gradient(180deg,#1c0538,#3d0f72 50%,#1c0538)}
 .reel::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.55),transparent 18%,transparent 82%,rgba(0,0,0,.55))}
 .reel .strip{display:flex;flex-direction:column;will-change:transform}
 .reel.spinning .strip{filter:blur(1.6px) brightness(1.15)}
@@ -191,7 +193,7 @@
 .ss-w{position:relative;margin:0;font-family:var(--f-display);font-size:20px;color:var(--sc)}
 
 /* Roue de Nils */
-.wheelov{position:fixed;inset:0;z-index:55;display:grid;place-items:center;background:radial-gradient(circle at 50% 45%,#1f3cd0,#060a30 70%);animation:fadein .35s;padding:16px;overflow:hidden;--spd:0}
+.wheelov{position:fixed;inset:0;z-index:55;display:grid;place-items:center;background:radial-gradient(circle at 50% 42%,#ff8a3d 0%,#ff2e93 30%,#7a16d8 60%,#22053f 100%);animation:fadein .35s;padding:16px;overflow:hidden;--spd:0}
 .wheelov.out{opacity:0;transition:opacity .3s}
 @keyframes fadein{from{opacity:0}}
 .wh-rays{position:absolute;left:50%;top:46%;width:200vmax;height:200vmax;translate:-50% -50%;
@@ -234,7 +236,7 @@
 .wheelov.landed .wh-win{animation:whwin .3s steps(2) 10 forwards}
 @keyframes whwin{0%{opacity:0}50%{opacity:1}100%{opacity:.85}}
 .wh-hub{position:absolute;left:50%;top:50%;width:27%;aspect-ratio:1;translate:-50% -50%;border:0;padding:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;
-  background:radial-gradient(circle at 35% 30%,#3a63ff,#0a1458);box-shadow:0 0 0 4px #ffd23f,0 0 0 7px #7a5200,0 0 24px #ffd23f}
+  background:radial-gradient(circle at 35% 30%,#c03bff,#3a0a7a);box-shadow:0 0 0 4px #ffd23f,0 0 0 7px #7a5200,0 0 24px #ffd23f}
 .wheelov:not(.launched) .wh-hub{animation:hubpulse 1s ease-in-out infinite}
 @keyframes hubpulse{50%{box-shadow:0 0 0 4px #fff,0 0 0 7px #ffd23f,0 0 40px #ffd23f}}
 .wh-hub svg{width:80%;height:auto;pointer-events:none}
@@ -285,7 +287,7 @@
 /* Petits écrans : logo et GRAND côte à côte, scène plus basse, pour garder de grands rouleaux */
 @media (max-height:760px){
   .topper{grid-template-columns:auto 1fr;align-items:center;column-gap:8px;row-gap:4px;padding:5px 7px 6px}
-  .topper .logo{flex-direction:column;gap:0;font-size:17px;line-height:.9;align-items:center}
+  .topper .slogo{flex-direction:column;gap:0;font-size:17px;line-height:.9;align-items:center}
   .topper .pgrand{width:100%;justify-self:stretch}
   .topper .plaques{grid-column:1/-1}
   .pgrand b{font-size:clamp(20px,3.6dvh,28px)}

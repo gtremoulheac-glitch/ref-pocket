@@ -7,9 +7,9 @@
    243 façons de gagner : la même réf sur des rouleaux voisins depuis la gauche, n'importe quelle ligne.
    ========================================================= */
 const SJ=14, SCOIN=15, SCAM=16, SBST=17;
-const SLOT_W=[20,20,20,20,20,20,6,6,6,6,3,3,3,2.2,9,22,1.2,1.5];   // seulement pour l'aspect des rouleaux qui défilent
-const SLOT_PAY={3:[1,1,1,1,1,1,1,1,1,1,2,2,2,5,6],4:[1,1,1,1,1,1,2,2,2,2,6,6,6,12,20],5:[2,2,2,2,2,2,5,5,5,5,15,15,15,40,80]};
-const SLOT_JP={101:["MINI",50],102:["MINOR",150],103:["MAJOR",500],104:["GRAND",0]};
+const SLOT_W=[22,22,22,22,22,22,6,6,6,6,3,3,3,2.2,7,22,1.05,1.6];   // seulement pour l'aspect des rouleaux qui défilent
+const SLOT_PAY={3:[1,1,1,1,1,1,1,1,1,1,2,2,2,4,5],4:[1,1,1,1,1,1,2,2,2,2,5,5,5,10,15],5:[2,2,2,2,2,2,4,4,4,4,12,12,12,30,60]};
+const SLOT_JP={101:["MINI",100],102:["MINOR",300],103:["MAJOR",1000],104:["GRAND",0]};
 const SLOT_ROLE=["Commune","Commune","Commune","Commune","Commune","Commune","Rare","Rare","Rare","Rare","Épique","Épique","Épique","Légendaire","Joker"];
 
 const Slot={
@@ -57,9 +57,9 @@ const Slot={
     return `<div class="cab${free?" freemode":""}">
       <canvas class="slotfx" id="slotfx" aria-hidden="true"></canvas>
       <div class="topper">
-        <div class="logo" aria-label="Fortune Khey"><span>FORTUNE</span><span>KHEY</span></div>
+        <div class="slogo" aria-label="Fortune Khey"><span>FORTUNE</span><span>KHEY</span></div>
         <div class="plaque pgrand"><small>GRAND</small><b id="jpg">${this.fmtK(I.pool)}</b><i class="psh"></i></div>
-        <div class="plaques"><div class="plaque pmajor"><small>MAJOR</small><b>${fmt(500*bet)}</b><i class="psh"></i></div><div class="plaque pminor"><small>MINOR</small><b>${fmt(150*bet)}</b><i class="psh"></i></div><div class="plaque pmini"><small>MINI</small><b>${fmt(50*bet)}</b><i class="psh"></i></div></div>
+        <div class="plaques"><div class="plaque pmajor"><small>MAJOR</small><b>${fmt(1000*bet)}</b><i class="psh"></i></div><div class="plaque pminor"><small>MINOR</small><b>${fmt(300*bet)}</b><i class="psh"></i></div><div class="plaque pmini"><small>MINI</small><b>${fmt(100*bet)}</b><i class="psh"></i></div></div>
       </div>
       <div class="slotstage">
         <div class="st-rays"></div><div class="st-coin"><span>RP</span></div>
@@ -74,7 +74,7 @@ const Slot={
         <button class="spinbtn" id="spin" data-act="slotspin" ${!free&&S.me.kheys<bet?"disabled":""}><i class="gloss"></i><span>${free?"GRATUIT":"TOURNER"}</span><small>${free?`${free} restant${free>1?"s":""}`:`mise ${bet} K`}</small></button>
         <button class="iconbtn" data-act="slotpay" aria-label="Règles et gains">ⓘ</button>
       </div>
-      <p class="slotfoot">${I.spins||0} / ${I.cap||500} tours aujourd'hui · Retour moyen ≈ 105 %</p>
+      <p class="slotfoot">${I.spins||0} / ${I.cap||500} tours aujourd'hui · Retour moyen ≈ 110 %</p>
     </div>`;
   },
   mount(){
@@ -326,7 +326,7 @@ const Slot={
     const W=this.info.wheel||[], seg=o.wheel, n=W.length||8, step=360/n;
     await this.wait(250);
     const cols=["#21d4fd","#ff3bd5","#ffd23f","#3dffa8","#8b7bff","#ff8a3d","#ff4f6d","#c6ff3d"];
-    const grad=W.map((s,i)=>`${s.t==="w"?cols[i%cols.length]:"#141a5c"} ${i*step}deg ${(i+1)*step}deg`).join(",");
+    const grad=W.map((s,i)=>`${s.t==="w"?cols[i%cols.length]:"#2a0752"} ${i*step}deg ${(i+1)*step}deg`).join(",");
     const bulbs=Array.from({length:24},(_,i)=>`<i class="wb" style="transform:rotate(${i*15}deg)"></i>`).join("");
     const ov=document.createElement("div"); ov.className="wheelov intro"; ov.setAttribute("role","dialog"); ov.setAttribute("aria-label","Roue de Nils");
     ov.innerHTML=`<div class="wh-rays"></div><div class="wh-flash"></div>
@@ -342,11 +342,11 @@ const Slot={
     const box=ov.querySelector(".wh-box");
     const rb=box.getBoundingClientRect();
     SFx.burst(rb.left+rb.width/2,rb.top+rb.height/2,["#ffd23f","#fff6c8","#ff3bd5","#21d4fd"],80,{speed:9,g:.08,life:80});
-    await this.wait(1100); ov.classList.remove("intro");
+    await new Promise(r=>setTimeout(r,1100)); ov.classList.remove("intro"); this.fast=false;
     // le joueur lance la roue (ou elle part toute seule au bout de 10 s)
     await new Promise(res=>{let done=false;const go=()=>{if(done)return;done=true;res();};
       ov.querySelector("#whgo").onclick=go; ov.querySelector("#whgo2").onclick=go; ov.querySelector(".wh-spin").onclick=go;
-      setTimeout(go,this.fast?50:10000);});
+      if(typeof Test!=="undefined"&&Test.kind==="slot"&&Test.q.get("auto")==="1") setTimeout(go,300);});
     Sfx.unlock(); Sfx.p("click"); ov.classList.add("launched");
     const wh=ov.querySelector("#wh"), ptr=ov.querySelector(".wh-ptr"), rays=ov.querySelector(".wh-rays");
     const turns=this.fast?3:8, end=turns*360+(360-(seg.i*step+step/2));
@@ -457,10 +457,10 @@ const Slot={
       Les réfs changent toutes les 6 heures (prochain changement dans ${this.nextIn()}). Aligner une épique ou une légendaire joue son son.</p>
       <div class="ptlist">${[14,13,12,11,10,9,8,7,6,5,4,3,2,1,0].map(row).join("")}</div>
       <div class="ptx"><div class="ptr">${this.tile(SCOIN,3)}<div class="ptn"><b>Khey d'or</b><span class="note">6 pièces ou plus : <b>Pluie de Kheys</b>. Les pièces restent, 3 relances, chaque nouvelle pièce remet les relances à 3. Grille pleine = GRAND.</span></div></div>
-      <div class="ptr">${this.tile(SCAM)}<div class="ptn"><b>Appareil photo</b><span class="note">Chaque appareil qui tombe abîme ceux de Nils (3 coups chacun). Les 3 détruits : <b>roue de Nils</b> (×10 à ×100 ou 8 à 20 tours gratuits).</span></div></div>
+      <div class="ptr">${this.tile(SCAM)}<div class="ptn"><b>Appareil photo</b><span class="note">Chaque appareil qui tombe abîme ceux de Nils (3 coups chacun). Les 3 détruits : <b>roue de Nils</b> (×25 à ×200 ou 12 à 30 tours gratuits).</span></div></div>
       <div class="ptr">${this.tile(SBST)}<div class="ptn"><b>Booster</b><span class="note">3 n'importe où : 1 booster · 4 : 3 boosters · 5 : une carte épique.</span></div></div></div>
-      <p class="note">Jackpots sur les pièces : MINI 50×, MINOR 150×, MAJOR 500× la mise. <b>GRAND</b> = la cagnotte partagée (3 % de toutes les mises) : en entier à 10 K, la moitié à 5 K, 10 % à 1 K.
-      Retour moyen ≈ 105 % : sur la durée, la machine rend un peu plus que ce qu'on mise. 500 tours payants par jour.</p>
+      <p class="note">Jackpots sur les pièces : MINI 100×, MINOR 300×, MAJOR 1 000× la mise. <b>GRAND</b> = la cagnotte partagée (3 % de toutes les mises) : en entier à 10 K, la moitié à 5 K, 10 % à 1 K.
+      Retour moyen ≈ 110 % : sur la durée, la machine rend un peu plus que ce qu'on mise. 500 tours payants par jour.</p>
       <div class="row" style="justify-content:flex-end"><button type="button" class="btn ghost" id="ptclose">Fermer</button></div></div>`;
     $("#ptclose").onclick=()=>dlg.close(); dlg.showModal();
   },
