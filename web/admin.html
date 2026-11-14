@@ -806,13 +806,13 @@ async function openDrops(g){
 async function openSlotAdmin(){
   const d=$("#tdlg"), r=await sb.rpc("slot_info");
   if(r.error){toast("Relance d'abord schema.sql dans Supabase : "+errMsg(r.error));return;}
-  const I=r.data, roles=["Commune","Commune","Commune","Commune","Rare","Rare","Rare","Épique","Épique","Légendaire","Joker"];
+  const I=r.data, roles=["Commune","Commune","Commune","Commune","Commune","Commune","Rare","Rare","Rare","Rare","Épique","Épique","Épique","Légendaire","Joker"];
   d.innerHTML=`<div class="dlg"><h2>🎰 Machine « Fortune Khey »</h2>
-    <p class="note">${I.auto?"Les réfs sont tirées <b>automatiquement chaque semaine</b> parmi les cartes publiées des deux générations.":"Sélection <b>fixée</b> : elle reste jusqu'à ce que tu repasses en automatique."}
+    <p class="note">${I.auto?"Les 15 réfs sont tirées <b>automatiquement toutes les 6 heures</b> parmi les cartes publiées des deux générations.":"Sélection <b>fixée</b> : elle reste jusqu'à ce que tu repasses en automatique."}
       Cagnotte GRAND actuelle : <b>${(I.pool||0).toLocaleString("fr-FR")} K</b>.</p>
     <div class="slotrefs">${(I.symbols||[]).map((id,i)=>{const c=CARDS.find(x=>x.id===id);return `<div>${c?cardHTML(c):"?"}<span class="note">${roles[i]}</span></div>`;}).join("")}</div>
     <p class="note" id="slmsg" role="status"></p>
-    <div class="row" style="justify-content:space-between"><button type="button" class="btn ghost" data-sl="auto" ${I.auto?"disabled":""}>Tirage auto chaque semaine</button>
+    <div class="row" style="justify-content:space-between"><button type="button" class="btn ghost" data-sl="auto" ${I.auto?"disabled":""}>Tirage auto toutes les 6 h</button>
       <div class="row"><button type="button" class="btn ghost" data-sl="close">Fermer</button><button type="button" class="btn foil" data-sl="reroll">Nouvelle sélection au hasard</button></div></div></div>`;
   d.querySelectorAll("[data-sl]").forEach(b=>b.onclick=async()=>{const k=b.dataset.sl;if(k==="close")return d.close();
     b.disabled=true;const x=await sb.rpc("slot_reroll",{p_auto:k==="auto"});

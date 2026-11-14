@@ -1942,15 +1942,16 @@ end $$;
 
 -- ---------------------------------------------------------------------
 -- 14. Machine à sous « Fortune Khey »
--- Grille 5 × 3, 20 lignes. Symboles = 11 réfs de la semaine (les deux générations) :
---   0-3 communes, 4-6 rares, 7-8 épiques, 9 légendaire, 10 joker (légendaire)
---   + 11 pièce « Khey d'or », 12 appareil photo (de Nils), 13 booster.
+-- Grille 5 × 3, 243 façons de gagner (la même réf sur des rouleaux voisins depuis la gauche, n'importe quelle ligne).
+-- Symboles = 15 réfs qui changent toutes les 6 heures (les deux générations) :
+--   0-5 communes, 6-9 rares, 10-12 épiques, 13 légendaire, 14 joker (légendaire)
+--   + 15 pièce « Khey d'or », 16 appareil photo (de Nils), 17 booster.
 -- 6 pièces ou plus = Pluie de Kheys (3 relances, chaque nouvelle pièce remet à 3).
 -- Chaque appareil photo touché abîme les 3 appareils au-dessus de la machine (3 coups chacun) :
 -- les 3 cassés = roue de Nils (gain ou tours gratuits). 3+ boosters = boosters offerts, 5 = une carte.
 -- Jackpots : Mini 20×, Minor 50×, Major 250× la mise ; Grand = cagnotte partagée
 -- (3 % de toutes les mises), gagnée en entier à mise ×10, 50 % à ×5, 10 % à ×1.
--- Retour simulé : ~87 % hors boosters et cagnotte (~92 % au total). 500 tours payants par jour.
+-- Retour simulé : ~88 % hors boosters et cagnotte (~92 % au total). 500 tours payants par jour.
 -- ---------------------------------------------------------------------
 alter table public.profiles add column if not exists slot jsonb not null default '{}'::jsonb;
 
@@ -1985,17 +1986,20 @@ begin
 end $$;
 
 -- Les 11 réfs de la machine : sélection fixée par un admin, sinon tirage automatique chaque semaine
+create or replace function public._slot_period() returns text language sql stable as $$
+  select to_char(now() at time zone 'Europe/Paris', 'YYYY-MM-DD') || '-' || (extract(hour from now() at time zone 'Europe/Paris')::int / 6) $$;
+
 create or replace function public._slot_symbols() returns text[] language plpgsql stable as $$
-declare wk text := to_char(now() at time zone 'Europe/Paris', 'IYYY-IW'); ov jsonb; res text[] := '{}'; ls text[];
+declare wk text := public._slot_period(); ov jsonb; res text[] := '{}'; ls text[];
 begin
   select v into ov from public.settings where k = 'slot_symbols';
-  if ov is not null and jsonb_array_length(ov->'ids') = 11 then
+  if ov is not null and jsonb_array_length(ov->'ids') = 15 then
     select array_agg(x) into res from jsonb_array_elements_text(ov->'ids') x;
     return res;
   end if;
-  res := res || array(select id from public.cards where active and not draft and rarity = 'C' order by md5(id || wk) limit 4);
-  res := res || array(select id from public.cards where active and not draft and rarity = 'R' order by md5(id || wk) limit 3);
-  res := res || array(select id from public.cards where active and not draft and rarity = 'E' order by md5(id || wk) limit 2);
+  res := res || array(select id from public.cards where active and not draft and rarity = 'C' order by md5(id || wk) limit 6);
+  res := res || array(select id from public.cards where active and not draft and rarity = 'R' order by md5(id || wk) limit 4);
+  res := res || array(select id from public.cards where active and not draft and rarity = 'E' order by md5(id || wk) limit 3);
   ls := array(select id from public.cards where active and not draft and rarity = 'L' order by md5(id || wk) limit 2);
   if coalesce(array_length(ls, 1), 0) < 2 then
     ls := ls || array(select id from public.cards where active and not draft and rarity = 'E' and not (id = any(res)) order by md5(id || wk) limit 2 - coalesce(array_length(ls, 1), 0));
@@ -2006,54 +2010,57 @@ end $$;
 -- Tirage d'un tour (sans rien enregistrer) : utilisé par slot_spin et par les simulations
 create or replace function public._slot_core(p_bet int) returns jsonb language plpgsql volatile as $$
 declare
-  wts numeric[] := array[25,25,23,23, 8,8,7, 4,4, 2.5, 2.3, 18, 1.1, 1.4];
-  pay3 int[] := array[1,1,1,1, 2,2,2, 4,4, 8, 10];
-  pay4 int[] := array[2,2,2,2, 5,5,5, 10,10, 25, 40];
-  pay5 int[] := array[4,4,4,4, 12,12,12, 40,40, 100, 250];
-  ln int[] := array[
-    [1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],[0,1,2,1,0],[2,1,0,1,2],[0,0,1,2,2],[2,2,1,0,0],[1,0,0,0,1],[1,2,2,2,1],[1,0,1,2,1],
-    [1,2,1,0,1],[0,1,0,1,0],[2,1,2,1,2],[0,1,1,1,0],[2,1,1,1,2],[1,1,0,1,1],[1,1,2,1,1],[0,2,0,2,0],[2,0,2,0,2],[0,2,2,2,0]];
+  wts numeric[] := array[20,20,20,20,20,20, 6,6,6,6, 3,3,3, 2.2, 9, 22, 1.2, 1.5];
+  pay3 int[] := array[1,1,1,1,1,1, 1,1,1,1, 2,2,2, 4, 5];
+  pay4 int[] := array[1,1,1,1,1,1, 2,2,2,2, 5,5,5, 10, 15];
+  pay5 int[] := array[2,2,2,2,2,2, 4,4,4,4, 12,12,12, 30, 60];
   -- valeurs des pièces (× mise) ; 101..104 = Mini, Minor, Major, Grand
   cv int[] := array[1,2,3,5,8,10,101,102,103,104];
-  cw numeric[] := array[30,25,18,12,6,4,3,1.2,0.25,0.05];
-  g int[] := array_fill(0, array[15]); coins jsonb := '{}'; lines jsonb := '[]';
-  w numeric[]; r int; k int; i int; sym int; base int; n int; lw int := 0; nc int := 0; ncam int := 0; nb int := 0;
-  bonus jsonb := null; steps jsonb := '[]'; st jsonb; cells int; resp int; tot int := 0; jps jsonb := '[]'; v int; isfull boolean := false;
+  cw numeric[] := array[40,26,15,8,4,2.5,3,1.2,0.25,0.05];
+  g int[] := array_fill(0, array[15]); coins jsonb := '{}'; wins jsonb := '[]';
+  w numeric[]; r int; k int; i int; sym int; n int; m int; c int; lw int := 0; nc int := 0; ncam int := 0; nb int := 0; cells jsonb;
+  bonus jsonb := null; steps jsonb := '[]'; st jsonb; filled int; resp int; tot int := 0; jps jsonb := '[]'; v int; isfull boolean := false;
 begin
   for r in 0..4 loop
-    w := wts; if r in (0, 4) then w[11] := 0; end if;           -- pas de joker sur les rouleaux 1 et 5
+    w := wts; if r in (0, 4) then w[15] := 0; end if;           -- pas de joker sur les rouleaux 1 et 5
     for k in 0..2 loop
       sym := public._wpick(w) - 1; g[r * 3 + k + 1] := sym;
-      if sym = 11 then nc := nc + 1; coins := coins || jsonb_build_object((r * 3 + k)::text, cv[public._wpick(cw)]);
-      elsif sym = 12 then ncam := ncam + 1; elsif sym = 13 then nb := nb + 1; end if;
+      if sym = 15 then nc := nc + 1; coins := coins || jsonb_build_object((r * 3 + k)::text, cv[public._wpick(cw)]);
+      elsif sym = 16 then ncam := ncam + 1; elsif sym = 17 then nb := nb + 1; end if;
     end loop;
   end loop;
-  -- lignes : symboles identiques depuis la gauche, le joker remplace tout sauf pièces/appareils/boosters
-  for i in 1..20 loop
-    base := 10;
-    for r in 0..4 loop sym := g[r * 3 + ln[i][r + 1] + 1]; if sym <> 10 then base := sym; exit; end if; end loop;
-    if base > 10 then continue; end if;
-    n := 0;
-    for r in 0..4 loop sym := g[r * 3 + ln[i][r + 1] + 1]; exit when not (sym = base or sym = 10); n := n + 1; end loop;
+  -- 243 façons : pour chaque réf, nombre de rouleaux consécutifs depuis la gauche qui la contiennent (ou un joker)
+  for sym in 0..13 loop
+    n := 0; m := 1; cells := '[]';
+    for r in 0..4 loop
+      c := 0;
+      for k in 0..2 loop
+        if g[r * 3 + k + 1] = sym or g[r * 3 + k + 1] = 14 then c := c + 1; cells := cells || to_jsonb(r * 3 + k); end if;
+      end loop;
+      exit when c = 0;
+      n := n + 1; m := m * c;
+    end loop;
     if n >= 3 then
-      v := case n when 3 then pay3[base + 1] when 4 then pay4[base + 1] else pay5[base + 1] end;
-      lw := lw + v; lines := lines || jsonb_build_object('l', i - 1, 's', base, 'n', n, 'w', v * p_bet);
+      -- on ne garde que les cases des rouleaux qui comptent
+      cells := (select coalesce(jsonb_agg(x), '[]') from jsonb_array_elements(cells) x where (x::int) / 3 < n);
+      v := (case n when 3 then pay3[sym + 1] when 4 then pay4[sym + 1] else pay5[sym + 1] end) * m;
+      lw := lw + v; wins := wins || jsonb_build_object('s', sym, 'n', n, 'm', m, 'w', v * p_bet, 'cells', cells);
     end if;
   end loop;
   -- Pluie de Kheys
   if nc >= 6 then
-    cells := nc; resp := 3;
-    while resp > 0 and cells < 15 loop
+    filled := nc; resp := 3;
+    while resp > 0 and filled < 15 loop
       st := '[]';
       for i in 0..14 loop
-        if not coins ? i::text and random() < 0.045 then
-          v := cv[public._wpick(cw)]; coins := coins || jsonb_build_object(i::text, v); st := st || jsonb_build_object('p', i, 'v', v); cells := cells + 1;
+        if not coins ? i::text and random() < 0.04 then
+          v := cv[public._wpick(cw)]; coins := coins || jsonb_build_object(i::text, v); st := st || jsonb_build_object('p', i, 'v', v); filled := filled + 1;
         end if;
       end loop;
       steps := steps || jsonb_build_array(st);
       if jsonb_array_length(st) > 0 then resp := 3; else resp := resp - 1; end if;
     end loop;
-    isfull := cells >= 15;
+    isfull := filled >= 15;
     for v in select value::int from jsonb_each_text(coins) loop
       if v < 100 then tot := tot + v * p_bet;
       elsif v < 104 then tot := tot + (case v when 101 then 20 when 102 then 50 else 250 end) * p_bet;
@@ -2063,7 +2070,7 @@ begin
     if isfull and not jps ? 'grand' then jps := jps || to_jsonb('grand'::text); end if;
     bonus := jsonb_build_object('steps', steps, 'total', tot, 'jackpots', jps, 'full', isfull);
   end if;
-  return jsonb_build_object('grid', to_jsonb(g), 'coins', coins, 'lines', lines, 'lw', lw * p_bet, 'bonus', bonus, 'cams', ncam, 'boosters', nb);
+  return jsonb_build_object('grid', to_jsonb(g), 'coins', coins, 'lines', wins, 'lw', lw * p_bet, 'bonus', bonus, 'cams', ncam, 'boosters', nb);
 end $$;
 
 -- Roue de Nils : 8 cases (gain = × mise, tours = tours gratuits)
@@ -2085,7 +2092,9 @@ begin
     'wheel', _slot_wheel(),
     'wins', coalesce((select jsonb_agg(jsonb_build_object('user', owner, 'kind', kind, 'amount', amount, 'bet', bet, 'label', label, 'at', created_at) order by id desc)
                       from (select * from slot_wins order by id desc limit 6) z), '[]'),
-    'auto', not exists (select 1 from settings where k = 'slot_symbols'));
+    'auto', not exists (select 1 from settings where k = 'slot_symbols'),
+    -- prochain changement automatique des réfs (toutes les 6 heures, heure de Paris)
+    'next', (date_trunc('day', now() at time zone 'Europe/Paris') + make_interval(hours => (extract(hour from now() at time zone 'Europe/Paris')::int / 6 + 1) * 6)) at time zone 'Europe/Paris');
 end $$;
 
 create or replace function public.slot_spin(p_bet int default 1) returns jsonb
@@ -2160,7 +2169,7 @@ begin
       case when prize->>'t' = 'card' then (select name from cards where id = prize->>'card') else (prize->>'n') || ' booster' || case when (prize->>'n')::int > 1 then 's' else '' end end); end if;
 
   return o || jsonb_build_object('bet', bet, 'paid', paid, 'win', win, 'wheel', wh, 'events', ev, 'prize', prize,
-    'cam', cam, 'free', free, 'spins', spins, 'kheys', (select kheys from profiles where id = u),
+    'cam', cam, 'free', free, 'spins', spins, 'kheys', (select kheys from profiles where id = u), 'symbols', to_jsonb(_slot_symbols()),
     'pool', (select floor(amount) from slot_pool where id = 1));
 end $$;
 
@@ -2171,11 +2180,11 @@ declare res text[] := '{}';
 begin
   if not public.is_admin() then raise exception 'Réservé aux administrateurs'; end if;
   if p_auto then delete from settings where k = 'slot_symbols'; return _slot_symbols(); end if;
-  res := res || array(select id from cards where active and not draft and rarity = 'C' order by random() limit 4);
-  res := res || array(select id from cards where active and not draft and rarity = 'R' order by random() limit 3);
-  res := res || array(select id from cards where active and not draft and rarity = 'E' order by random() limit 2);
+  res := res || array(select id from cards where active and not draft and rarity = 'C' order by random() limit 6);
+  res := res || array(select id from cards where active and not draft and rarity = 'R' order by random() limit 4);
+  res := res || array(select id from cards where active and not draft and rarity = 'E' order by random() limit 3);
   res := res || array(select id from cards where active and not draft and rarity = 'L' order by random() limit 2);
-  if array_length(res, 1) <> 11 then raise exception 'Pas assez de cartes publiées'; end if;
+  if array_length(res, 1) <> 15 then raise exception 'Pas assez de cartes publiées'; end if;
   insert into settings(k, v) values ('slot_symbols', jsonb_build_object('ids', to_jsonb(res)))
     on conflict (k) do update set v = excluded.v, updated_at = now();
   return res;
